@@ -1,4 +1,4 @@
-import ResumeEditor from "@/components/ResumeEditor"
+import ResumeEditor from "../../components/ResumeEditor"
 
 export const metadata = {
   title: "LaTeX Resume Editor - ResumeTailor",

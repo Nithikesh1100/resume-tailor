@@ -1,4 +1,4 @@
-import AITailor from "@/components/AITailor"
+import AITailor from "../../components/AITailor"
 
 export const metadata = {
   title: "AI Resume Tailoring - ResumeTailor",

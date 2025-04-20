@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Sparkles, Copy, Download, RefreshCw, Save } from "lucide-react"
+import { Sparkles, Copy, Download, RefreshCw, Save, AlertTriangle } from "lucide-react"
+import { generateCoverLetter, mockData } from "../services/api"
 
 export default function CoverLetterGenerator() {
   const [resumeText, setResumeText] = useState("")
@@ -15,6 +16,8 @@ export default function CoverLetterGenerator() {
     { name: "Academic", id: "academic" },
   ])
   const [selectedTemplate, setSelectedTemplate] = useState("professional")
+  const [error, setError] = useState(null)
+  const [apiKey, setApiKey] = useState("")
 
   // Sample resume for demo purposes
   const sampleResume = `John Doe
@@ -70,51 +73,35 @@ Requirements:
 - Strong problem-solving skills and attention to detail
 - Excellent communication and teamwork abilities`
 
-  // Sample cover letter for demo purposes
-  const sampleCoverLetter = `John Doe
-123 Main Street
-San Francisco, CA 94105
-john.doe@email.com
-(123) 456-7890
-
-April 13, 2025
-
-Hiring Manager
-TechCorp Inc.
-San Francisco, CA
-
-Dear Hiring Manager,
-
-I am writing to express my interest in the Senior Frontend Developer position at TechCorp Inc. As an experienced software engineer with over 5 years of expertise in frontend development, I am excited about the opportunity to contribute to your team's success in building exceptional user experiences.
-
-Throughout my career at Tech Innovations Inc. and Digital Solutions LLC, I have developed a strong foundation in React, Redux, and modern JavaScript (ES6+), which aligns perfectly with your requirements. At Tech Innovations, I led frontend development initiatives that improved application performance by 40% through optimized rendering and state management techniques. I also have extensive experience with Next.js for server-side rendering, having implemented it in multiple projects to enhance SEO and initial load performance.
-
-Your job description mentions the importance of collaboration and mentorship, which resonates with my experience mentoring junior developers and conducting code reviews to ensure code quality. I believe that knowledge sharing is essential for team growth, and I am passionate about helping others improve their skills while maintaining high standards for our codebase.
-
-Some of my relevant accomplishments include:
-
-- Developing responsive web applications using React and Redux that served thousands of daily users
-- Implementing automated testing with Jest and React Testing Library, reducing bugs by 60%
-- Optimizing frontend performance through code splitting, lazy loading, and efficient state management
-- Collaborating with UX/UI designers to create intuitive and accessible user interfaces
-
-I am particularly drawn to TechCorp's mission to create innovative digital solutions and your commitment to user-centered design. I am confident that my technical expertise, problem-solving abilities, and collaborative approach would make me a valuable addition to your team.
-
-I would welcome the opportunity to discuss how my background, skills, and experiences would benefit TechCorp Inc. Thank you for considering my application.
-
-Sincerely,
-
-John Doe`
-
-  // Mock function to generate cover letter
-  const generateCoverLetter = () => {
+  // Function to generate cover letter
+  const generateCoverLetterHandler = async () => {
     setIsGenerating(true)
+    setError(null)
 
-    // Simulate API call delay
-    setTimeout(() => {
-      setCoverLetter(sampleCoverLetter)
+    try {
+      // First, check if API key is available from localStorage
+      const storedApiKey = localStorage.getItem("openai_api_key") || apiKey
+
+      if (!storedApiKey) {
+        throw new Error("OpenAI API key is required. Please add it in the Settings page.")
+      }
+
+      // Call the backend API
+      const response = await generateCoverLetter(resumeText, jobDescription, additionalInfo, storedApiKey)
+      setCoverLetter(response.coverLetter)
+    } catch (err) {
+      console.error("Error generating cover letter:", err)
+      setError(err.message || "Failed to generate cover letter. Please try again.")
+
+      // For demo purposes, use mock data if backend is not available
+      if (err.message.includes("Failed to fetch") || err.message.includes("Network Error")) {
+        console.log("Using mock data for demo")
+        setCoverLetter(mockData.coverLetterResponse.coverLetter)
+        setError("Using sample data (backend not available)")
+      }
+    } finally {
       setIsGenerating(false)
-    }, 3000)
+    }
   }
 
   // Load sample data
@@ -132,6 +119,15 @@ John Doe`
     if (templateName) {
       const newId = templateName.toLowerCase().replace(/\s+/g, "-")
       setSavedTemplates([...savedTemplates, { name: templateName, id: newId }])
+
+      // Save to localStorage
+      try {
+        const existingTemplates = JSON.parse(localStorage.getItem("coverLetterTemplates") || "[]")
+        existingTemplates.push({ name: templateName, id: newId, content: coverLetter })
+        localStorage.setItem("coverLetterTemplates", JSON.stringify(existingTemplates))
+      } catch (err) {
+        console.error("Error saving template:", err)
+      }
     }
   }
 
@@ -190,6 +186,29 @@ John Doe`
             />
           </div>
 
+          {/* API Key input (shown only if not available in settings) */}
+          {!localStorage.getItem("openai_api_key") && (
+            <div className="space-y-2">
+              <label htmlFor="cover-letter-api-key" className="text-sm font-medium">
+                OpenAI API Key <span className="text-red-500">*</span>
+              </label>
+              <div className="flex flex-col">
+                <input
+                  id="cover-letter-api-key"
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your API key is used only for this request and not stored on our server. You can also set this in the
+                  Settings page.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Template Selection */}
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Cover Letter Template</h2>
@@ -213,7 +232,7 @@ John Doe`
           {/* Generate Button */}
           <div className="flex justify-center">
             <button
-              onClick={generateCoverLetter}
+              onClick={generateCoverLetterHandler}
               disabled={!resumeText || !jobDescription || isGenerating}
               className="flex items-center space-x-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -240,6 +259,17 @@ John Doe`
               Create New Cover Letter
             </button>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="p-4 rounded-md bg-yellow-50 border border-yellow-200 flex items-start space-x-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm text-yellow-700">{error}</p>
+                <p className="text-xs text-yellow-600 mt-1">Results shown are sample data for demonstration.</p>
+              </div>
+            </div>
+          )}
 
           {/* Cover Letter Preview */}
           <div className="border rounded-lg p-6 bg-white text-black whitespace-pre-wrap font-serif">{coverLetter}</div>
@@ -268,7 +298,20 @@ John Doe`
               <span>Save as Template</span>
             </button>
             <button
-              onClick={() => setIsGenerating(true) || setTimeout(() => setIsGenerating(false), 2000)}
+              onClick={() => {
+                setIsGenerating(true)
+                setTimeout(() => {
+                  setIsGenerating(false)
+                  // Regenerate with slight variations
+                  const variations = [
+                    "I am excited about the opportunity",
+                    "I am enthusiastic about the possibility",
+                    "I am thrilled about the chance",
+                  ]
+                  const randomVariation = variations[Math.floor(Math.random() * variations.length)]
+                  setCoverLetter(coverLetter.replace("I am excited about the opportunity", randomVariation))
+                }, 2000)
+              }}
               className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
             >
               <RefreshCw className={`h-5 w-5 ${isGenerating ? "animate-spin" : ""}`} />

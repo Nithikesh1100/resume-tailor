@@ -1,4 +1,4 @@
-import CoverLetterGenerator from "@/components/CoverLetterGenerator"
+import CoverLetterGenerator from "../../components/CoverLetterGenerator"
 
 export const metadata = {
   title: "Cover Letter Generator - ResumeTailor",

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Save, Key, AlertTriangle, Check, X, Eye, EyeOff } from "lucide-react"
 
 export default function Settings() {
@@ -16,6 +16,19 @@ export default function Settings() {
   })
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null) // null, 'success', 'error'
+
+  // Load saved API keys on component mount
+  useEffect(() => {
+    const openaiKey = localStorage.getItem("openai_api_key") || ""
+    const githubKey = localStorage.getItem("github_api_key") || ""
+    const latexKey = localStorage.getItem("latex_api_key") || ""
+
+    setApiKeys({
+      openai: openaiKey,
+      github: githubKey,
+      latex: latexKey,
+    })
+  }, [])
 
   // Handle input change
   const handleInputChange = (key, value) => {
@@ -33,21 +46,32 @@ export default function Settings() {
     })
   }
 
-  // Mock function to save settings
+  // Save settings to localStorage
   const saveSettings = () => {
     setIsSaving(true)
     setSaveStatus(null)
 
-    // Simulate API call delay
-    setTimeout(() => {
-      setIsSaving(false)
-      setSaveStatus("success")
+    try {
+      // Save API keys to localStorage
+      localStorage.setItem("openai_api_key", apiKeys.openai)
+      localStorage.setItem("github_api_key", apiKeys.github)
+      localStorage.setItem("latex_api_key", apiKeys.latex)
 
-      // Reset status after 3 seconds
+      // Simulate API call delay
       setTimeout(() => {
-        setSaveStatus(null)
-      }, 3000)
-    }, 1500)
+        setIsSaving(false)
+        setSaveStatus("success")
+
+        // Reset status after 3 seconds
+        setTimeout(() => {
+          setSaveStatus(null)
+        }, 3000)
+      }, 1500)
+    } catch (error) {
+      console.error("Error saving settings:", error)
+      setSaveStatus("error")
+      setIsSaving(false)
+    }
   }
 
   return (

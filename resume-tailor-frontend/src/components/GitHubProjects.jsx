@@ -1,103 +1,46 @@
 "use client"
 
 import { useState } from "react"
-import { Github, Search, Star, GitFork, Code, ExternalLink, Plus, Check } from "lucide-react"
+import { Github, Search, Star, GitFork, Code, ExternalLink, Plus, Check, AlertTriangle } from "lucide-react"
+import { fetchGitHubProjects, mockData } from "@/services/api"
 
 export default function GitHubProjects() {
   const [username, setUsername] = useState("")
+  const [jobDescription, setJobDescription] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [projects, setProjects] = useState([])
   const [selectedProjects, setSelectedProjects] = useState([])
   const [error, setError] = useState("")
 
-  // Sample GitHub projects for demo purposes
-  const sampleProjects = [
-    {
-      id: 1,
-      name: "react-dashboard",
-      description: "A responsive admin dashboard built with React, Tailwind CSS, and Chart.js",
-      html_url: "https://github.com/johndoe/react-dashboard",
-      homepage: "https://react-dashboard-demo.vercel.app",
-      language: "JavaScript",
-      stargazers_count: 156,
-      forks_count: 42,
-      topics: ["react", "tailwindcss", "dashboard", "chartjs"],
-      created_at: "2022-03-15T10:30:00Z",
-      updated_at: "2023-11-20T14:22:00Z",
-    },
-    {
-      id: 2,
-      name: "nextjs-blog-template",
-      description: "A feature-rich blog template built with Next.js, MDX, and Tailwind CSS",
-      html_url: "https://github.com/johndoe/nextjs-blog-template",
-      homepage: "https://nextjs-blog-template-demo.vercel.app",
-      language: "TypeScript",
-      stargazers_count: 89,
-      forks_count: 23,
-      topics: ["nextjs", "blog", "mdx", "tailwindcss"],
-      created_at: "2022-06-22T09:15:00Z",
-      updated_at: "2023-10-05T11:45:00Z",
-    },
-    {
-      id: 3,
-      name: "react-native-fitness-app",
-      description: "A cross-platform fitness tracking app built with React Native and Expo",
-      html_url: "https://github.com/johndoe/react-native-fitness-app",
-      homepage: null,
-      language: "JavaScript",
-      stargazers_count: 67,
-      forks_count: 18,
-      topics: ["react-native", "expo", "fitness", "mobile-app"],
-      created_at: "2022-09-10T15:20:00Z",
-      updated_at: "2023-12-01T08:30:00Z",
-    },
-    {
-      id: 4,
-      name: "node-express-api",
-      description: "A RESTful API boilerplate built with Node.js, Express, and MongoDB",
-      html_url: "https://github.com/johndoe/node-express-api",
-      homepage: null,
-      language: "JavaScript",
-      stargazers_count: 112,
-      forks_count: 34,
-      topics: ["nodejs", "express", "mongodb", "rest-api"],
-      created_at: "2021-11-05T12:10:00Z",
-      updated_at: "2023-09-18T16:40:00Z",
-    },
-    {
-      id: 5,
-      name: "python-data-analysis",
-      description: "A collection of Jupyter notebooks for data analysis using Python, Pandas, and Matplotlib",
-      html_url: "https://github.com/johndoe/python-data-analysis",
-      homepage: null,
-      language: "Python",
-      stargazers_count: 78,
-      forks_count: 25,
-      topics: ["python", "pandas", "matplotlib", "data-analysis", "jupyter"],
-      created_at: "2022-01-20T14:50:00Z",
-      updated_at: "2023-08-12T09:25:00Z",
-    },
-  ]
-
-  // Mock function to fetch GitHub projects
-  const fetchProjects = () => {
+  // Function to fetch GitHub projects
+  const fetchProjects = async () => {
     setIsLoading(true)
     setError("")
 
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
       if (username.trim() === "") {
-        setError("Please enter a GitHub username")
-        setProjects([])
+        throw new Error("Please enter a GitHub username")
+      }
+
+      // Call the backend API
+      const response = await fetchGitHubProjects(username, jobDescription)
+      setProjects(response.repositories || [])
+    } catch (err) {
+      console.error("Error fetching GitHub projects:", err)
+      setError(err.message || "Failed to fetch GitHub projects. Please try again.")
+
+      // For demo purposes, use mock data if backend is not available
+      if (err.message.includes("Failed to fetch") || err.message.includes("Network Error")) {
+        console.log("Using mock data for demo")
+        setProjects(mockData.githubResponse.repositories || [])
+        setError("Using sample data (backend not available)")
       } else if (username.toLowerCase() === "error") {
         setError("User not found or API rate limit exceeded")
         setProjects([])
-      } else {
-        setProjects(sampleProjects)
       }
-
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
   // Toggle project selection
@@ -115,6 +58,27 @@ export default function GitHubProjects() {
     return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
   }
 
+  // Add selected projects to resume
+  const addProjectsToResume = () => {
+    if (selectedProjects.length === 0) return
+
+    // Get selected project details
+    const projectsToAdd = projects.filter((project) => selectedProjects.includes(project.id))
+
+    // Store in localStorage to be used in resume editor
+    try {
+      const existingProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]")
+      const combinedProjects = [...existingProjects, ...projectsToAdd]
+      localStorage.setItem("githubProjects", JSON.stringify(combinedProjects))
+
+      alert(`${selectedProjects.length} projects added to your resume! You can now include them in your resume editor.`)
+      setSelectedProjects([])
+    } catch (err) {
+      console.error("Error saving projects:", err)
+      alert("Failed to save projects. Please try again.")
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* GitHub Username Input */}
@@ -122,7 +86,7 @@ export default function GitHubProjects() {
         <div className="flex flex-col sm:flex-row sm:items-end gap-4">
           <div className="flex-grow space-y-2">
             <label htmlFor="github-username" className="text-sm font-medium">
-              GitHub Username or API Key
+              GitHub Username
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -137,6 +101,19 @@ export default function GitHubProjects() {
                 className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
+          </div>
+          <div className="flex-grow space-y-2">
+            <label htmlFor="job-description" className="text-sm font-medium">
+              Job Description (Optional)
+            </label>
+            <input
+              id="job-description"
+              type="text"
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              placeholder="Optional job description for relevance filtering"
+              className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
           </div>
           <button
             onClick={fetchProjects}
@@ -163,7 +140,17 @@ export default function GitHubProjects() {
         </p>
 
         {/* Error message */}
-        {error && <div className="p-4 rounded-md bg-destructive/10 text-destructive">{error}</div>}
+        {error && (
+          <div className="p-4 rounded-md bg-yellow-50 border border-yellow-200 flex items-start space-x-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm text-yellow-700">{error}</p>
+              {error.includes("sample data") && (
+                <p className="text-xs text-yellow-600 mt-1">Results shown are sample data for demonstration.</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Projects List */}
@@ -172,6 +159,7 @@ export default function GitHubProjects() {
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Found {projects.length} repositories</h2>
             <button
+              onClick={addProjectsToResume}
               disabled={selectedProjects.length === 0}
               className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -215,7 +203,7 @@ export default function GitHubProjects() {
                 </div>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {project.topics.map((topic, index) => (
+                  {project.topics?.map((topic, index) => (
                     <span key={index} className="px-2 py-1 text-xs rounded-full bg-muted text-muted-foreground">
                       {topic}
                     </span>
@@ -226,17 +214,17 @@ export default function GitHubProjects() {
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-1">
                       <Star className="h-4 w-4" />
-                      <span>{project.stargazers_count}</span>
+                      <span>{project.stars}</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <GitFork className="h-4 w-4" />
-                      <span>{project.forks_count}</span>
+                      <span>{project.forks}</span>
                     </div>
-                    <div>Updated {formatDate(project.updated_at)}</div>
+                    <div>Updated {formatDate(project.updatedAt)}</div>
                   </div>
                   <div className="flex space-x-2">
                     <a
-                      href={project.html_url}
+                      href={project.htmlUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-1 rounded-md hover:bg-muted transition-colors"
@@ -257,6 +245,20 @@ export default function GitHubProjects() {
                     )}
                   </div>
                 </div>
+
+                {project.relevanceScore > 0 && (
+                  <div className="mt-2 pt-2 border-t border-border">
+                    <div className="flex items-center">
+                      <span className="text-xs text-muted-foreground mr-2">Relevance:</span>
+                      <div className="flex-1 bg-muted h-1.5 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary"
+                          style={{ width: `${Math.min(100, Math.floor(project.relevanceScore))}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

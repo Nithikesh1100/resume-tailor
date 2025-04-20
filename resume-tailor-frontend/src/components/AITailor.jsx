@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Sparkles, FileText, ArrowRight, Check, X } from "lucide-react"
+import { Sparkles, FileText, ArrowRight, Check, X, AlertTriangle } from "lucide-react"
+import { tailorResume, mockData } from "../services/api"
 
 export default function AITailor() {
   const [resumeText, setResumeText] = useState("")
@@ -9,6 +10,8 @@ export default function AITailor() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [results, setResults] = useState(null)
   const [activeTab, setActiveTab] = useState("suggestions")
+  const [error, setError] = useState(null)
+  const [apiKey, setApiKey] = useState("")
 
   // Sample resume for demo purposes
   const sampleResume = `John Doe
@@ -68,44 +71,35 @@ Nice to have:
 - Understanding of accessibility standards
 - Experience with Agile development methodologies`
 
-  // Mock function to analyze resume against job description
-  const analyzeResume = () => {
+  // Function to analyze resume against job description
+  const analyzeResume = async () => {
     setIsAnalyzing(true)
+    setError(null)
 
-    // Simulate API call delay
-    setTimeout(() => {
-      // Mock analysis results
-      setResults({
-        score: 72,
-        keywordMatch: 68,
-        missingKeywords: ["Next.js", "Jest", "React Testing Library", "Accessibility"],
-        suggestions: [
-          {
-            original:
-              "Experienced software engineer with 5+ years of expertise in full-stack development, specializing in React, Node.js, and cloud technologies.",
-            improved:
-              "Experienced frontend developer with 5+ years of expertise in React development, specializing in responsive web applications, modern JavaScript frameworks, and performance optimization.",
-            reason: "Aligns better with the frontend focus of the job description.",
-          },
-          {
-            original: "Led development of a microservices architecture that improved system reliability by 40%",
-            improved:
-              "Led frontend development using React and Next.js that improved application performance by 40% and enhanced user experience",
-            reason: "Highlights Next.js experience which is specifically mentioned in the job requirements.",
-          },
-          {
-            original: "Implemented CI/CD pipelines reducing deployment time by 60%",
-            improved:
-              "Implemented automated testing with Jest and React Testing Library, reducing bugs by 60% and improving code quality",
-            reason: "Emphasizes testing experience which is mentioned in the job requirements.",
-          },
-        ],
-        skillsToHighlight: ["React", "Redux", "JavaScript (ES6+)", "HTML5", "CSS3", "Responsive Design"],
-        skillsToAdd: ["Next.js", "Jest", "React Testing Library", "Accessibility Standards"],
-      })
+    try {
+      // First, check if API key is available from localStorage
+      const storedApiKey = localStorage.getItem("openai_api_key") || apiKey
 
+      if (!storedApiKey) {
+        throw new Error("OpenAI API key is required. Please add it in the Settings page.")
+      }
+
+      // Call the backend API
+      const response = await tailorResume(resumeText, jobDescription, storedApiKey)
+      setResults(response)
+    } catch (err) {
+      console.error("Error analyzing resume:", err)
+      setError(err.message || "Failed to analyze resume. Please try again.")
+
+      // For demo purposes, use mock data if backend is not available
+      if (err.message.includes("Failed to fetch") || err.message.includes("Network Error")) {
+        console.log("Using mock data for demo")
+        setResults(mockData.tailorResponse)
+        setError("Using sample data (backend not available)")
+      }
+    } finally {
       setIsAnalyzing(false)
-    }, 3000)
+    }
   }
 
   // Load sample data
@@ -147,6 +141,29 @@ Nice to have:
             </div>
           </div>
 
+          {/* API Key input (shown only if not available in settings) */}
+          {!localStorage.getItem("openai_api_key") && (
+            <div className="space-y-2">
+              <label htmlFor="api-key" className="text-sm font-medium">
+                OpenAI API Key <span className="text-red-500">*</span>
+              </label>
+              <div className="flex flex-col">
+                <input
+                  id="api-key"
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                  className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your API key is used only for this request and not stored on our server. You can also set this in the
+                  Settings page.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Analyze Button */}
           <div className="flex justify-center">
             <button
@@ -178,6 +195,17 @@ Nice to have:
             </button>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="p-4 rounded-md bg-yellow-50 border border-yellow-200 flex items-start space-x-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm text-yellow-700">{error}</p>
+                <p className="text-xs text-yellow-600 mt-1">Results shown are sample data for demonstration.</p>
+              </div>
+            </div>
+          )}
+
           {/* Match Score */}
           <div className="bg-card rounded-lg p-6 border">
             <div className="flex flex-col md:flex-row items-center justify-between">
@@ -197,7 +225,7 @@ Nice to have:
                       className="text-primary"
                       strokeWidth="8"
                       strokeDasharray={251.2}
-                      strokeDashoffset={251.2 * (1 - results.score / 100)}
+                      strokeDashoffset={251.2 * (1 - results.matchScore / 100)}
                       strokeLinecap="round"
                       stroke="currentColor"
                       fill="transparent"
@@ -207,17 +235,23 @@ Nice to have:
                     />
                   </svg>
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-2xl font-bold">
-                    {results.score}%
+                    {results.matchScore}%
                   </div>
                 </div>
                 <div>
                   <h3 className="text-xl font-semibold">Resume Match Score</h3>
-                  <p className="text-muted-foreground">Your resume matches {results.score}% of the job requirements</p>
+                  <p className="text-muted-foreground">
+                    Your resume matches {results.matchScore}% of the job requirements
+                  </p>
                 </div>
               </div>
               <div className="mt-4 md:mt-0 text-center md:text-right">
-                <div className="text-sm font-medium">Keyword Match: {results.keywordMatch}%</div>
-                <div className="text-xs text-muted-foreground">{results.missingKeywords.length} missing keywords</div>
+                <div className="text-sm font-medium">
+                  Keyword Match: {results.keywordsMatched?.length || 0} keywords matched
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {results.keywordsMissing?.length || 0} missing keywords
+                </div>
               </div>
             </div>
           </div>
@@ -260,7 +294,7 @@ Nice to have:
                         <X className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                         <div>
                           <div className="font-medium">Original Text:</div>
-                          <p className="text-muted-foreground">{suggestion.original}</p>
+                          <p className="text-muted-foreground">{suggestion.originalText}</p>
                         </div>
                       </div>
                     </div>
@@ -269,7 +303,7 @@ Nice to have:
                         <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
                         <div>
                           <div className="font-medium">Improved Version:</div>
-                          <p>{suggestion.improved}</p>
+                          <p>{suggestion.suggestedText}</p>
                           <p className="mt-2 text-sm text-muted-foreground">
                             <span className="font-medium">Why:</span> {suggestion.reason}
                           </p>
@@ -290,12 +324,15 @@ Nice to have:
                   <h3 className="text-lg font-semibold">Skills to Highlight</h3>
                   <div className="bg-card border rounded-lg p-4">
                     <ul className="space-y-2">
-                      {results.skillsToHighlight.map((skill, index) => (
+                      {results.keywordsMatched?.map((skill, index) => (
                         <li key={index} className="flex items-center space-x-2">
                           <Check className="h-4 w-4 text-green-500" />
                           <span>{skill}</span>
                         </li>
                       ))}
+                      {results.keywordsMatched?.length === 0 && (
+                        <li className="text-muted-foreground">No matched skills found</li>
+                      )}
                     </ul>
                   </div>
                 </div>
@@ -305,12 +342,15 @@ Nice to have:
                   <h3 className="text-lg font-semibold">Skills to Add</h3>
                   <div className="bg-card border rounded-lg p-4">
                     <ul className="space-y-2">
-                      {results.skillsToAdd.map((skill, index) => (
+                      {results.keywordsMissing?.map((skill, index) => (
                         <li key={index} className="flex items-center space-x-2">
                           <ArrowRight className="h-4 w-4 text-primary" />
                           <span>{skill}</span>
                         </li>
                       ))}
+                      {results.keywordsMissing?.length === 0 && (
+                        <li className="text-muted-foreground">No missing skills detected</li>
+                      )}
                     </ul>
                   </div>
                 </div>
@@ -320,11 +360,14 @@ Nice to have:
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Missing Keywords</h3>
                 <div className="flex flex-wrap gap-2">
-                  {results.missingKeywords.map((keyword, index) => (
+                  {results.keywordsMissing?.map((keyword, index) => (
                     <span key={index} className="px-3 py-1 bg-muted rounded-full text-sm font-medium">
                       {keyword}
                     </span>
                   ))}
+                  {results.keywordsMissing?.length === 0 && (
+                    <span className="text-muted-foreground">No missing keywords detected</span>
+                  )}
                 </div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import GitHubProjects from "@/components/GitHubProjects"
+import GitHubProjects from "../../components/GitHubProjects"
 
 export const metadata = {
   title: "GitHub Integration - ResumeTailor",

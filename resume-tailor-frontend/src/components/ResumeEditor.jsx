@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Download, Copy, Save, RefreshCw } from "lucide-react"
+import { Download, Copy, Save, RefreshCw, AlertTriangle } from "lucide-react"
+import { compileToPdf } from "@/services/api"
 
 // Sample LaTeX template
 const sampleLatexTemplate = `\\documentclass[11pt,a4paper]{article}
@@ -20,11 +21,11 @@ const sampleLatexTemplate = `\\documentclass[11pt,a4paper]{article}
 \\begin{document}
 
 \\begin{center}
-    {\\LARGE \\textbf{John Doe}}\\\\
-    123 Main Street, City, State 12345\\\\
-    (123) 456-7890 | \\href{mailto:john.doe@email.com}{john.doe@email.com} | 
-    \\href{https://linkedin.com/in/johndoe}{linkedin.com/in/johndoe} | 
-    \\href{https://github.com/johndoe}{github.com/johndoe}
+   {\\LARGE \\textbf{John Doe}}\\\\
+   123 Main Street, City, State 12345\\\\
+   (123) 456-7890 | \\href{mailto:john.doe@email.com}{john.doe@email.com} | 
+   \\href{https://linkedin.com/in/johndoe}{linkedin.com/in/johndoe} | 
+   \\href{https://github.com/johndoe}{github.com/johndoe}
 \\end{center}
 
 \\section{Summary}
@@ -32,31 +33,31 @@ Experienced software engineer with 5+ years of expertise in full-stack developme
 
 \\section{Skills}
 \\begin{itemize}[leftmargin=*, noitemsep]
-    \\item \\textbf{Programming Languages:} JavaScript, TypeScript, Python, Java
-    \\item \\textbf{Frontend:} React, Redux, HTML5, CSS3, Tailwind CSS
-    \\item \\textbf{Backend:} Node.js, Express, Django, Spring Boot
-    \\item \\textbf{Databases:} MongoDB, PostgreSQL, MySQL, Redis
-    \\item \\textbf{DevOps:} Docker, Kubernetes, AWS, CI/CD, Git
-    \\item \\textbf{Other:} RESTful APIs, GraphQL, Microservices, Agile/Scrum
+   \\item \\textbf{Programming Languages:} JavaScript, TypeScript, Python, Java
+   \\item \\textbf{Frontend:} React, Redux, HTML5, CSS3, Tailwind CSS
+   \\item \\textbf{Backend:} Node.js, Express, Django, Spring Boot
+   \\item \\textbf{Databases:} MongoDB, PostgreSQL, MySQL, Redis
+   \\item \\textbf{DevOps:} Docker, Kubernetes, AWS, CI/CD, Git
+   \\item \\textbf{Other:} RESTful APIs, GraphQL, Microservices, Agile/Scrum
 \\end{itemize}
 
 \\section{Experience}
 \\textbf{Senior Software Engineer} \\hfill Jan 2021 - Present\\\\
 \\textit{Tech Innovations Inc., San Francisco, CA}
 \\begin{itemize}[leftmargin=*, noitemsep]
-    \\item Led development of a microservices architecture that improved system reliability by 40\\%
-    \\item Implemented CI/CD pipelines reducing deployment time by 60\\%
-    \\item Mentored junior developers and conducted code reviews to ensure code quality
-    \\item Optimized database queries resulting in 30\\% faster application response time
+   \\item Led development of a microservices architecture that improved system reliability by 40\\%
+   \\item Implemented CI/CD pipelines reducing deployment time by 60\\%
+   \\item Mentored junior developers and conducted code reviews to ensure code quality
+   \\item Optimized database queries resulting in 30\\% faster application response time
 \\end{itemize}
 
 \\textbf{Software Engineer} \\hfill Mar 2018 - Dec 2020\\\\
 \\textit{Digital Solutions LLC, Boston, MA}
 \\begin{itemize}[leftmargin=*, noitemsep]
-    \\item Developed responsive web applications using React and Redux
-    \\item Created RESTful APIs with Node.js and Express
-    \\item Collaborated with UX/UI designers to implement user-friendly interfaces
-    \\item Participated in Agile development cycles and sprint planning
+   \\item Developed responsive web applications using React and Redux
+   \\item Created RESTful APIs with Node.js and Express
+   \\item Collaborated with UX/UI designers to implement user-friendly interfaces
+   \\item Participated in Agile development cycles and sprint planning
 \\end{itemize}
 
 \\section{Education}
@@ -69,23 +70,23 @@ Experienced software engineer with 5+ years of expertise in full-stack developme
 \\section{Projects}
 \\textbf{E-commerce Platform} \\hfill \\href{https://github.com/johndoe/ecommerce}{github.com/johndoe/ecommerce}
 \\begin{itemize}[leftmargin=*, noitemsep]
-    \\item Built a full-stack e-commerce platform with React, Node.js, and MongoDB
-    \\item Implemented secure payment processing with Stripe API
-    \\item Deployed on AWS using Docker containers and Kubernetes
+   \\item Built a full-stack e-commerce platform with React, Node.js, and MongoDB
+   \\item Implemented secure payment processing with Stripe API
+   \\item Deployed on AWS using Docker containers and Kubernetes
 \\end{itemize}
 
 \\textbf{Task Management Application} \\hfill \\href{https://github.com/johndoe/taskmanager}{github.com/johndoe/taskmanager}
 \\begin{itemize}[leftmargin=*, noitemsep]
-    \\item Developed a task management app with drag-and-drop functionality
-    \\item Integrated real-time updates using WebSockets
-    \\item Implemented user authentication and authorization
+   \\item Developed a task management app with drag-and-drop functionality
+   \\item Integrated real-time updates using WebSockets
+   \\item Implemented user authentication and authorization
 \\end{itemize}
 
 \\section{Certifications}
 \\begin{itemize}[leftmargin=*, noitemsep]
-    \\item AWS Certified Solutions Architect
-    \\item Google Cloud Professional Developer
-    \\item MongoDB Certified Developer
+   \\item AWS Certified Solutions Architect
+   \\item Google Cloud Professional Developer
+   \\item MongoDB Certified Developer
 \\end{itemize}
 
 \\end{document}`
@@ -94,16 +95,28 @@ export default function ResumeEditor() {
   const [latexCode, setLatexCode] = useState(sampleLatexTemplate)
   const [previewHtml, setPreviewHtml] = useState("")
   const [isCompiling, setIsCompiling] = useState(false)
+  const [error, setError] = useState(null)
   const [savedTemplates, setSavedTemplates] = useState([
     { name: "Software Engineer", content: sampleLatexTemplate },
     { name: "Data Scientist", content: "% Data Scientist LaTeX Template" },
     { name: "Product Manager", content: "% Product Manager LaTeX Template" },
   ])
 
+  // Check for GitHub projects from localStorage
+  useEffect(() => {
+    try {
+      const githubProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]")
+      if (githubProjects.length > 0) {
+        // Show notification or handle the integration into the resume
+        console.log(`Found ${githubProjects.length} GitHub projects to integrate`)
+      }
+    } catch (err) {
+      console.error("Error loading GitHub projects:", err)
+    }
+  }, [])
+
   // Simulate LaTeX compilation to HTML preview
   useEffect(() => {
-    // This is a simplified simulation of LaTeX to HTML conversion
-    // In a real app, you would use  => {
     // This is a simplified simulation of LaTeX to HTML conversion
     // In a real app, you would use a proper LaTeX to HTML converter or API
     const simulateCompilation = () => {
@@ -150,7 +163,15 @@ export default function ResumeEditor() {
   const saveTemplate = () => {
     const templateName = prompt("Enter a name for this template:")
     if (templateName) {
-      setSavedTemplates([...savedTemplates, { name: templateName, content: latexCode }])
+      const newTemplate = { name: templateName, content: latexCode }
+      setSavedTemplates([...savedTemplates, newTemplate])
+
+      // Save to localStorage
+      try {
+        localStorage.setItem(`resume_template_${templateName.toLowerCase().replace(/\s+/g, "_")}`, latexCode)
+      } catch (err) {
+        console.error("Error saving template:", err)
+      }
     }
   }
 
@@ -162,12 +183,36 @@ export default function ResumeEditor() {
   }
 
   // Handle downloading as PDF
-  const downloadPdf = () => {
-    // In a real app, this would call a backend service to compile LaTeX to PDF
-    alert("In a production environment, this would compile your LaTeX code to a PDF and download it.")
-    // Simulate download delay
+  const downloadPdf = async () => {
     setIsCompiling(true)
-    setTimeout(() => setIsCompiling(false), 2000)
+    setError(null)
+
+    try {
+      // Call backend API to compile LaTeX to PDF
+      const pdfBlob = await compileToPdf(latexCode)
+
+      // Create download link
+      const url = URL.createObjectURL(pdfBlob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "resume.pdf"
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error("Error compiling PDF:", err)
+      setError("Failed to compile PDF. Please check your LaTeX syntax or try again later.")
+
+      // For demo purposes, simulate successful PDF generation
+      setTimeout(() => {
+        alert(
+          "For demonstration: PDF would be downloaded in a production environment. The backend service for PDF compilation is not available in this demo.",
+        )
+      }, 500)
+    } finally {
+      setIsCompiling(false)
+    }
   }
 
   return (
@@ -185,6 +230,16 @@ export default function ResumeEditor() {
           </button>
         ))}
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="p-4 rounded-md bg-yellow-50 border border-yellow-200 flex items-start space-x-2">
+          <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm text-yellow-700">{error}</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LaTeX Editor */}
