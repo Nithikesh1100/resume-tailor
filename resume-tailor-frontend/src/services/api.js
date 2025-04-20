@@ -7,13 +7,34 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api"
 
 /**
+ * Get available AI providers
+ * @returns {Promise<string[]>} - List of available AI provider names
+ */
+export async function getAIProviders() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ai/providers`)
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch AI providers")
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error("Error fetching AI providers:", error)
+    // Return default providers if API call fails
+    return ["openai", "groq"]
+  }
+}
+
+/**
  * Tailor a resume based on a job description
  * @param {string} resumeContent - The resume content
  * @param {string} jobDescription - The job description
- * @param {string} apiKey - The OpenAI API key
+ * @param {string} apiKey - The API key
+ * @param {string} provider - The AI provider (e.g., "openai", "groq")
  * @returns {Promise<Object>} - Tailored resume suggestions
  */
-export async function tailorResume(resumeContent, jobDescription, apiKey) {
+export async function tailorResume(resumeContent, jobDescription, apiKey, provider = "openai") {
   try {
     const response = await fetch(`${API_BASE_URL}/ai/tailor`, {
       method: "POST",
@@ -24,6 +45,7 @@ export async function tailorResume(resumeContent, jobDescription, apiKey) {
         resumeContent,
         jobDescription,
         apiKey,
+        provider,
       }),
     })
 
@@ -44,10 +66,11 @@ export async function tailorResume(resumeContent, jobDescription, apiKey) {
  * @param {string} resumeContent - The resume content
  * @param {string} jobDescription - The job description
  * @param {string} additionalInfo - Additional information
- * @param {string} apiKey - The OpenAI API key
+ * @param {string} apiKey - The API key
+ * @param {string} provider - The AI provider (e.g., "openai", "groq")
  * @returns {Promise<Object>} - Generated cover letter
  */
-export async function generateCoverLetter(resumeContent, jobDescription, additionalInfo, apiKey) {
+export async function generateCoverLetter(resumeContent, jobDescription, additionalInfo, apiKey, provider = "openai") {
   try {
     const response = await fetch(`${API_BASE_URL}/ai/cover-letter`, {
       method: "POST",
@@ -59,6 +82,7 @@ export async function generateCoverLetter(resumeContent, jobDescription, additio
         jobDescription,
         additionalInfo,
         apiKey,
+        provider,
       }),
     })
 

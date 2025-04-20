@@ -8,7 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TailorRequest {
-    private String resumeContent;
-    private String jobDescription;
-    private String apiKey;
+   private String resumeContent;
+   private String jobDescription;
+   private String apiKey;
+   private String provider; // Add provider field
 }

@@ -8,8 +8,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CoverLetterRequest {
-    private String resumeContent;
-    private String jobDescription;
-    private String additionalInfo;
-    private String apiKey;
+   private String resumeContent;
+   private String jobDescription;
+   private String additionalInfo;
+   private String apiKey;
+   private String provider; // Add provider field
 }

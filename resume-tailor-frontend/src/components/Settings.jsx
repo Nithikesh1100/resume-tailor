@@ -6,28 +6,36 @@ import { Save, Key, AlertTriangle, Check, X, Eye, EyeOff } from "lucide-react"
 export default function Settings() {
   const [apiKeys, setApiKeys] = useState({
     openai: "",
+    groq: "",
     github: "",
     latex: "",
   })
   const [showKeys, setShowKeys] = useState({
     openai: false,
+    groq: false,
     github: false,
     latex: false,
   })
+  const [selectedProvider, setSelectedProvider] = useState("openai")
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null) // null, 'success', 'error'
 
-  // Load saved API keys on component mount
+  // Load saved API keys and settings on component mount
   useEffect(() => {
     const openaiKey = localStorage.getItem("openai_api_key") || ""
+    const groqKey = localStorage.getItem("groq_api_key") || ""
     const githubKey = localStorage.getItem("github_api_key") || ""
     const latexKey = localStorage.getItem("latex_api_key") || ""
+    const provider = localStorage.getItem("selected_ai_provider") || "openai"
 
     setApiKeys({
       openai: openaiKey,
+      groq: groqKey,
       github: githubKey,
       latex: latexKey,
     })
+
+    setSelectedProvider(provider)
   }, [])
 
   // Handle input change
@@ -54,8 +62,10 @@ export default function Settings() {
     try {
       // Save API keys to localStorage
       localStorage.setItem("openai_api_key", apiKeys.openai)
+      localStorage.setItem("groq_api_key", apiKeys.groq)
       localStorage.setItem("github_api_key", apiKeys.github)
       localStorage.setItem("latex_api_key", apiKeys.latex)
+      localStorage.setItem("selected_ai_provider", selectedProvider)
 
       // Simulate API call delay
       setTimeout(() => {
@@ -89,12 +99,33 @@ export default function Settings() {
         </div>
 
         <div className="space-y-4">
+          {/* AI Provider Selection */}
+          <div className="space-y-2">
+            <label htmlFor="ai-provider" className="text-sm font-medium">
+              AI Provider
+            </label>
+            <select
+              id="ai-provider"
+              value={selectedProvider}
+              onChange={(e) => setSelectedProvider(e.target.value)}
+              className="w-full py-2 px-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-background"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="groq">Groq</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Select your preferred AI provider for resume tailoring and cover letter generation.
+            </p>
+          </div>
+
           {/* OpenAI API Key */}
           <div className="space-y-2">
             <label htmlFor="openai-api-key" className="text-sm font-medium flex items-center">
               <Key className="h-4 w-4 mr-2" />
               OpenAI API Key
-              <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">Required</span>
+              <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                {selectedProvider === "openai" ? "Required" : "Optional"}
+              </span>
             </label>
             <div className="relative">
               <input
@@ -114,9 +145,48 @@ export default function Settings() {
               </button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Used for AI-powered resume tailoring and cover letter generation.
+              Used for AI-powered resume tailoring and cover letter generation with OpenAI models.
               <a
                 href="https://platform.openai.com/api-keys"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-1 text-primary hover:underline"
+              >
+                Get your API key
+              </a>
+            </p>
+          </div>
+
+          {/* Groq API Key */}
+          <div className="space-y-2">
+            <label htmlFor="groq-api-key" className="text-sm font-medium flex items-center">
+              <Key className="h-4 w-4 mr-2" />
+              Groq API Key
+              <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                {selectedProvider === "groq" ? "Required" : "Optional"}
+              </span>
+            </label>
+            <div className="relative">
+              <input
+                id="groq-api-key"
+                type={showKeys.groq ? "text" : "password"}
+                value={apiKeys.groq}
+                onChange={(e) => handleInputChange("groq", e.target.value)}
+                placeholder="gsk_..."
+                className="w-full pr-10 py-2 px-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <button
+                type="button"
+                onClick={() => toggleKeyVisibility("groq")}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-foreground"
+              >
+                {showKeys.groq ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Used for AI-powered resume tailoring and cover letter generation with Groq models.
+              <a
+                href="https://console.groq.com/keys"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ml-1 text-primary hover:underline"
@@ -227,11 +297,23 @@ export default function Settings() {
               id="ai-model"
               className="w-full py-2 px-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-background"
             >
-              <option value="gpt-4">GPT-4 (Recommended)</option>
-              <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Faster)</option>
+              {selectedProvider === "openai" ? (
+                <>
+                  <option value="gpt-4">GPT-4 (Recommended)</option>
+                  <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Faster)</option>
+                </>
+              ) : (
+                <>
+                  <option value="llama3-70b-8192">Llama 3 70B (Recommended)</option>
+                  <option value="llama3-8b-8192">Llama 3 8B (Faster)</option>
+                  <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+                </>
+              )}
             </select>
             <p className="text-xs text-muted-foreground">
-              GPT-4 provides better quality suggestions but may be slower and more expensive.
+              {selectedProvider === "openai"
+                ? "GPT-4 provides better quality suggestions but may be slower and more expensive."
+                : "Llama 3 70B provides the best quality suggestions but may be slower."}
             </p>
           </div>
 

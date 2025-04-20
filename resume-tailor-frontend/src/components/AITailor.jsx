@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Sparkles, FileText, ArrowRight, Check, X, AlertTriangle } from "lucide-react"
 import { tailorResume, mockData } from "../services/api"
 
@@ -12,6 +12,13 @@ export default function AITailor() {
   const [activeTab, setActiveTab] = useState("suggestions")
   const [error, setError] = useState(null)
   const [apiKey, setApiKey] = useState("")
+  const [provider, setProvider] = useState("openai")
+
+  // Load provider from localStorage on component mount
+  useEffect(() => {
+    const savedProvider = localStorage.getItem("selected_ai_provider") || "openai"
+    setProvider(savedProvider)
+  }, [])
 
   // Sample resume for demo purposes
   const sampleResume = `John Doe
@@ -77,15 +84,16 @@ Nice to have:
     setError(null)
 
     try {
-      // First, check if API key is available from localStorage
-      const storedApiKey = localStorage.getItem("openai_api_key") || apiKey
+      // First, check if API key is available from localStorage based on selected provider
+      const providerKey = provider === "openai" ? "openai_api_key" : "groq_api_key"
+      const storedApiKey = localStorage.getItem(providerKey) || apiKey
 
       if (!storedApiKey) {
-        throw new Error("OpenAI API key is required. Please add it in the Settings page.")
+        throw new Error(`${provider.toUpperCase()} API key is required. Please add it in the Settings page.`)
       }
 
       // Call the backend API
-      const response = await tailorResume(resumeText, jobDescription, storedApiKey)
+      const response = await tailorResume(resumeText, jobDescription, storedApiKey, provider)
       setResults(response)
     } catch (err) {
       console.error("Error analyzing resume:", err)
@@ -141,11 +149,28 @@ Nice to have:
             </div>
           </div>
 
+          {/* AI Provider Selection */}
+          <div className="space-y-2">
+            <label htmlFor="ai-provider" className="text-sm font-medium">
+              AI Provider
+            </label>
+            <select
+              id="ai-provider"
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              className="w-full py-2 px-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-background"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="groq">Groq</option>
+            </select>
+            <p className="text-xs text-muted-foreground">Select which AI provider to use for analyzing your resume.</p>
+          </div>
+
           {/* API Key input (shown only if not available in settings) */}
-          {!localStorage.getItem("openai_api_key") && (
+          {!localStorage.getItem(provider === "openai" ? "openai_api_key" : "groq_api_key") && (
             <div className="space-y-2">
               <label htmlFor="api-key" className="text-sm font-medium">
-                OpenAI API Key <span className="text-red-500">*</span>
+                {provider.toUpperCase()} API Key <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-col">
                 <input
@@ -153,7 +178,7 @@ Nice to have:
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
+                  placeholder={provider === "openai" ? "sk-..." : "gsk_..."}
                   className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
                 <p className="text-xs text-muted-foreground mt-1">

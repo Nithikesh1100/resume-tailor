@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Sparkles, Copy, Download, RefreshCw, Save, AlertTriangle } from "lucide-react"
 import { generateCoverLetter, mockData } from "../services/api"
 
@@ -18,6 +18,13 @@ export default function CoverLetterGenerator() {
   const [selectedTemplate, setSelectedTemplate] = useState("professional")
   const [error, setError] = useState(null)
   const [apiKey, setApiKey] = useState("")
+  const [provider, setProvider] = useState("openai")
+
+  // Load provider from localStorage on component mount
+  useEffect(() => {
+    const savedProvider = localStorage.getItem("selected_ai_provider") || "openai"
+    setProvider(savedProvider)
+  }, [])
 
   // Sample resume for demo purposes
   const sampleResume = `John Doe
@@ -79,15 +86,16 @@ Requirements:
     setError(null)
 
     try {
-      // First, check if API key is available from localStorage
-      const storedApiKey = localStorage.getItem("openai_api_key") || apiKey
+      // First, check if API key is available from localStorage based on selected provider
+      const providerKey = provider === "openai" ? "openai_api_key" : "groq_api_key"
+      const storedApiKey = localStorage.getItem(providerKey) || apiKey
 
       if (!storedApiKey) {
-        throw new Error("OpenAI API key is required. Please add it in the Settings page.")
+        throw new Error(`${provider.toUpperCase()} API key is required. Please add it in the Settings page.`)
       }
 
       // Call the backend API
-      const response = await generateCoverLetter(resumeText, jobDescription, additionalInfo, storedApiKey)
+      const response = await generateCoverLetter(resumeText, jobDescription, additionalInfo, storedApiKey, provider)
       setCoverLetter(response.coverLetter)
     } catch (err) {
       console.error("Error generating cover letter:", err)
@@ -186,11 +194,30 @@ Requirements:
             />
           </div>
 
+          {/* AI Provider Selection */}
+          <div className="space-y-2">
+            <label htmlFor="cover-letter-ai-provider" className="text-sm font-medium">
+              AI Provider
+            </label>
+            <select
+              id="cover-letter-ai-provider"
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+              className="w-full py-2 px-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 bg-background"
+            >
+              <option value="openai">OpenAI</option>
+              <option value="groq">Groq</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Select which AI provider to use for generating your cover letter.
+            </p>
+          </div>
+
           {/* API Key input (shown only if not available in settings) */}
-          {!localStorage.getItem("openai_api_key") && (
+          {!localStorage.getItem(provider === "openai" ? "openai_api_key" : "groq_api_key") && (
             <div className="space-y-2">
               <label htmlFor="cover-letter-api-key" className="text-sm font-medium">
-                OpenAI API Key <span className="text-red-500">*</span>
+                {provider.toUpperCase()} API Key <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-col">
                 <input
@@ -198,7 +225,7 @@ Requirements:
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
+                  placeholder={provider === "openai" ? "sk-..." : "gsk_..."}
                   className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
