@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Github, Search, Star, GitFork, Code, ExternalLink, Plus, Check, AlertTriangle } from "lucide-react"
-import { fetchGitHubProjects, mockData } from "@/services/api"
+import { fetchGitHubProjects, mockData } from "../services/api"
 
 export default function GitHubProjects() {
   const [username, setUsername] = useState("")

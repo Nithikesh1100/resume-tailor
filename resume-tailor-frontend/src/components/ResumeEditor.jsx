@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Download, Copy, Save, RefreshCw, AlertTriangle } from "lucide-react"
-import { compileToPdf } from "@/services/api"
+import { compileToPdf } from "../services/api"
 
 // Sample LaTeX template
 const sampleLatexTemplate = `\\documentclass[11pt,a4paper]{article}

@@ -36,27 +36,59 @@ export async function getAIProviders() {
  */
 export async function tailorResume(resumeContent, jobDescription, apiKey, provider = "openai") {
   try {
+    console.log(`Calling tailorResume API with provider: ${provider}`)
+
+    // Create request body
+    const requestBody = {
+      resumeContent,
+      jobDescription,
+      apiKey,
+      provider,
+    }
+
+    console.log("Request body size:", JSON.stringify(requestBody).length, "bytes")
+
+    // Make the API call
     const response = await fetch(`${API_BASE_URL}/ai/tailor`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        resumeContent,
-        jobDescription,
-        apiKey,
-        provider,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
+    // Log response status
+    console.log("Response status:", response.status, response.statusText)
+
+    // Check if response is OK
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || "Failed to tailor resume")
+      const errorText = await response.text()
+      console.error("Error response body:", errorText)
+
+      try {
+        const errorData = JSON.parse(errorText)
+        throw new Error(errorData.message || `Failed to tailor resume: ${response.status} ${response.statusText}`)
+      } catch (e) {
+        throw new Error(
+          `Failed to tailor resume: ${response.status} ${response.statusText}. Response: ${errorText.substring(0, 100)}...`,
+        )
+      }
     }
 
-    return await response.json()
+    // Parse response
+    const data = await response.json()
+    console.log("AI Tailor Response:", data)
+
+    return data
   } catch (error) {
     console.error("Error tailoring resume:", error)
+
+    // Only use mock data if there's a network error
+    if (error.message.includes("Failed to fetch") || error.message.includes("Network Error")) {
+      console.log("Network error, falling back to mock data")
+      return mockData.tailorResponse
+    }
+
     throw error
   }
 }
@@ -72,28 +104,62 @@ export async function tailorResume(resumeContent, jobDescription, apiKey, provid
  */
 export async function generateCoverLetter(resumeContent, jobDescription, additionalInfo, apiKey, provider = "openai") {
   try {
+    console.log(`Calling generateCoverLetter API with provider: ${provider}`)
+
+    // Create request body
+    const requestBody = {
+      resumeContent,
+      jobDescription,
+      additionalInfo,
+      apiKey,
+      provider,
+    }
+
+    console.log("Request body size:", JSON.stringify(requestBody).length, "bytes")
+
+    // Make the API call
     const response = await fetch(`${API_BASE_URL}/ai/cover-letter`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        resumeContent,
-        jobDescription,
-        additionalInfo,
-        apiKey,
-        provider,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
+    // Log response status
+    console.log("Response status:", response.status, response.statusText)
+
+    // Check if response is OK
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || "Failed to generate cover letter")
+      const errorText = await response.text()
+      console.error("Error response body:", errorText)
+
+      try {
+        const errorData = JSON.parse(errorText)
+        throw new Error(
+          errorData.message || `Failed to generate cover letter: ${response.status} ${response.statusText}`,
+        )
+      } catch (e) {
+        throw new Error(
+          `Failed to generate cover letter: ${response.status} ${response.statusText}. Response: ${errorText.substring(0, 100)}...`,
+        )
+      }
     }
 
-    return await response.json()
+    // Parse response
+    const data = await response.json()
+    console.log("Cover Letter Response:", data)
+
+    return data
   } catch (error) {
     console.error("Error generating cover letter:", error)
+
+    // Only use mock data if there's a network error
+    if (error.message.includes("Failed to fetch") || error.message.includes("Network Error")) {
+      console.log("Network error, falling back to mock data")
+      return mockData.coverLetterResponse
+    }
+
     throw error
   }
 }
@@ -112,16 +178,44 @@ export async function fetchGitHubProjects(username, jobDescription = "") {
       url.searchParams.append("jobDescription", jobDescription)
     }
 
+    console.log("Fetching GitHub projects from:", url.toString())
+
     const response = await fetch(url.toString())
 
+    // Log response status
+    console.log("Response status:", response.status, response.statusText)
+
+    // Check if response is OK
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || "Failed to fetch GitHub projects")
+      const errorText = await response.text()
+      console.error("Error response body:", errorText)
+
+      try {
+        const errorData = JSON.parse(errorText)
+        throw new Error(
+          errorData.message || `Failed to fetch GitHub projects: ${response.status} ${response.statusText}`,
+        )
+      } catch (e) {
+        throw new Error(
+          `Failed to fetch GitHub projects: ${response.status} ${response.statusText}. Response: ${errorText.substring(0, 100)}...`,
+        )
+      }
     }
 
-    return await response.json()
+    // Parse response
+    const data = await response.json()
+    console.log("GitHub Projects Response:", data)
+
+    return data
   } catch (error) {
     console.error("Error fetching GitHub projects:", error)
+
+    // Only use mock data if there's a network error
+    if (error.message.includes("Failed to fetch") || error.message.includes("Network Error")) {
+      console.log("Network error, falling back to mock data")
+      return mockData.githubResponse
+    }
+
     throw error
   }
 }
@@ -133,6 +227,8 @@ export async function fetchGitHubProjects(username, jobDescription = "") {
  */
 export async function compileToPdf(latexContent) {
   try {
+    console.log("Compiling LaTeX to PDF, content length:", latexContent.length, "characters")
+
     const response = await fetch(`${API_BASE_URL}/resume/compile`, {
       method: "POST",
       headers: {
@@ -143,13 +239,31 @@ export async function compileToPdf(latexContent) {
       }),
     })
 
+    // Log response status
+    console.log("Response status:", response.status, response.statusText)
+
+    // Check if response is OK
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || "Failed to compile PDF")
+      const errorText = await response.text()
+      console.error("Error response body:", errorText)
+
+      try {
+        const errorData = JSON.parse(errorText)
+        throw new Error(errorData.message || `Failed to compile PDF: ${response.status} ${response.statusText}`)
+      } catch (e) {
+        throw new Error(`Failed to compile PDF: ${response.status} ${response.statusText}`)
+      }
     }
 
     return await response.blob()
   } catch (error) {
+    console.error("Error compiling PDF:", error)
+    throw error
+  }
+}
+
+/**
+ * Mock data for testing  {
     console.error("Error compiling PDF:", error)
     throw error
   }

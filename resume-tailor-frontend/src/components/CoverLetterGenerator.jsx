@@ -19,6 +19,12 @@ export default function CoverLetterGenerator() {
   const [error, setError] = useState(null)
   const [apiKey, setApiKey] = useState("")
   const [provider, setProvider] = useState("openai")
+  const [usingMockData, setUsingMockData] = useState(false)
+
+  // Add state for copy and download feedback
+  const [copyFeedback, setCopyFeedback] = useState(false)
+  const [downloadFeedback, setDownloadFeedback] = useState(false)
+  const [regenerateFeedback, setRegenerateFeedback] = useState(false)
 
   // Load provider from localStorage on component mount
   useEffect(() => {
@@ -84,6 +90,7 @@ Requirements:
   const generateCoverLetterHandler = async () => {
     setIsGenerating(true)
     setError(null)
+    setUsingMockData(false)
 
     try {
       // First, check if API key is available from localStorage based on selected provider
@@ -96,16 +103,24 @@ Requirements:
 
       // Call the backend API
       const response = await generateCoverLetter(resumeText, jobDescription, additionalInfo, storedApiKey, provider)
+
+      // Log the response for debugging
+      console.log("Cover Letter Response:", response)
+
       setCoverLetter(response.coverLetter)
     } catch (err) {
       console.error("Error generating cover letter:", err)
       setError(err.message || "Failed to generate cover letter. Please try again.")
 
-      // For demo purposes, use mock data if backend is not available
+      // Check if we're using mock data due to network error
       if (err.message.includes("Failed to fetch") || err.message.includes("Network Error")) {
-        console.log("Using mock data for demo")
+        console.log("Using mock data due to network error")
         setCoverLetter(mockData.coverLetterResponse.coverLetter)
+        setUsingMockData(true)
         setError("Using sample data (backend not available)")
+      } else {
+        // This is a real error from the backend
+        throw err
       }
     } finally {
       setIsGenerating(false)
@@ -148,6 +163,88 @@ Requirements:
     document.body.appendChild(element)
     element.click()
     document.body.removeChild(element)
+  }
+
+  // Update the copy to clipboard function with visual feedback
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(coverLetter)
+    setCopyFeedback(true)
+    setTimeout(() => setCopyFeedback(false), 2000)
+  }
+
+  // Update the download function with visual feedback
+  const downloadCoverLetterWithFeedback = () => {
+    downloadCoverLetter()
+    setDownloadFeedback(true)
+    setTimeout(() => setDownloadFeedback(false), 2000)
+  }
+
+  // Fix the regenerate function to actually call the API again
+  const regenerateCoverLetter = async () => {
+    setRegenerateFeedback(false)
+    setIsGenerating(true)
+    setError(null)
+    setUsingMockData(false)
+
+    try {
+      // Get API key
+      const providerKey = provider === "openai" ? "openai_api_key" : "groq_api_key"
+      const storedApiKey = localStorage.getItem(providerKey) || apiKey
+
+      if (!storedApiKey) {
+        throw new Error(`${provider.toUpperCase()} API key is required.`)
+      }
+
+      // Add a slight variation to the prompt to get different results
+      const modifiedAdditionalInfo = additionalInfo + " Please provide a different version than before."
+
+      // Call the API again
+      const response = await generateCoverLetter(
+        resumeText,
+        jobDescription,
+        modifiedAdditionalInfo,
+        storedApiKey,
+        provider,
+      )
+
+      console.log("Regenerated Cover Letter Response:", response)
+      setCoverLetter(response.coverLetter)
+
+      // Show success feedback
+      setRegenerateFeedback(true)
+      setTimeout(() => setRegenerateFeedback(false), 2000)
+    } catch (err) {
+      console.error("Error regenerating cover letter:", err)
+      setError(err.message || "Failed to regenerate cover letter. Please try again.")
+
+      // Check if we're using mock data due to network error
+      if (err.message.includes("Failed to fetch") || err.message.includes("Network Error")) {
+        console.log("Using mock data due to network error")
+        // Use mock data with slight variations for demo
+        const variations = [
+          "I am excited about the opportunity",
+          "I am enthusiastic about the possibility",
+          "I am thrilled about the chance",
+        ]
+        const randomVariation = variations[Math.floor(Math.random() * variations.length)]
+        const modifiedLetter = mockData.coverLetterResponse.coverLetter.replace(
+          "I am excited about the opportunity",
+          randomVariation,
+        )
+        setCoverLetter(modifiedLetter)
+        setUsingMockData(true)
+        setError("Using sample data (backend not available)")
+
+        // Show success feedback anyway
+        setRegenerateFeedback(true)
+        setTimeout(() => setRegenerateFeedback(false), 2000)
+      } else {
+        // This is a real error from the backend
+        throw err
+      }
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
@@ -293,7 +390,9 @@ Requirements:
               <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm text-yellow-700">{error}</p>
-                <p className="text-xs text-yellow-600 mt-1">Results shown are sample data for demonstration.</p>
+                {usingMockData && (
+                  <p className="text-xs text-yellow-600 mt-1">Results shown are sample data for demonstration.</p>
+                )}
               </div>
             </div>
           )}
@@ -304,18 +403,24 @@ Requirements:
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-4 justify-center">
             <button
-              onClick={() => navigator.clipboard.writeText(coverLetter)}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+              onClick={copyToClipboard}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                copyFeedback
+                  ? "bg-green-500 text-white"
+                  : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+              }`}
             >
               <Copy className="h-5 w-5" />
-              <span>Copy to Clipboard</span>
+              <span>{copyFeedback ? "Copied!" : "Copy to Clipboard"}</span>
             </button>
             <button
-              onClick={downloadCoverLetter}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              onClick={downloadCoverLetterWithFeedback}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                downloadFeedback ? "bg-green-500 text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
+              }`}
             >
               <Download className="h-5 w-5" />
-              <span>Download as Text</span>
+              <span>{downloadFeedback ? "Downloaded!" : "Download as Text"}</span>
             </button>
             <button
               onClick={saveTemplate}
@@ -325,24 +430,16 @@ Requirements:
               <span>Save as Template</span>
             </button>
             <button
-              onClick={() => {
-                setIsGenerating(true)
-                setTimeout(() => {
-                  setIsGenerating(false)
-                  // Regenerate with slight variations
-                  const variations = [
-                    "I am excited about the opportunity",
-                    "I am enthusiastic about the possibility",
-                    "I am thrilled about the chance",
-                  ]
-                  const randomVariation = variations[Math.floor(Math.random() * variations.length)]
-                  setCoverLetter(coverLetter.replace("I am excited about the opportunity", randomVariation))
-                }, 2000)
-              }}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+              onClick={regenerateCoverLetter}
+              disabled={isGenerating}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                regenerateFeedback && !isGenerating
+                  ? "bg-green-500 text-white"
+                  : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+              }`}
             >
               <RefreshCw className={`h-5 w-5 ${isGenerating ? "animate-spin" : ""}`} />
-              <span>Regenerate</span>
+              <span>{isGenerating ? "Regenerating..." : regenerateFeedback ? "Regenerated!" : "Regenerate"}</span>
             </button>
           </div>
         </div>

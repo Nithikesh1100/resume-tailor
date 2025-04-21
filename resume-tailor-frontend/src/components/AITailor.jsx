@@ -13,6 +13,12 @@ export default function AITailor() {
   const [error, setError] = useState(null)
   const [apiKey, setApiKey] = useState("")
   const [provider, setProvider] = useState("openai")
+  const [usingMockData, setUsingMockData] = useState(false)
+  const [rawResponse, setRawResponse] = useState(null)
+
+  // Add state for action feedback
+  const [applyFeedback, setApplyFeedback] = useState(false)
+  const [generateFeedback, setGenerateFeedback] = useState(false)
 
   // Load provider from localStorage on component mount
   useEffect(() => {
@@ -78,10 +84,25 @@ Nice to have:
 - Understanding of accessibility standards
 - Experience with Agile development methodologies`
 
+  // Function to check if response is empty
+  const isEmptyResponse = (response) => {
+    if (!response) return true
+
+    // Check if all arrays are empty and matchScore is 0
+    const hasEmptySuggestions = !response.suggestions || response.suggestions.length === 0
+    const hasEmptyKeywordsMatched = !response.keywordsMatched || response.keywordsMatched.length === 0
+    const hasEmptyKeywordsMissing = !response.keywordsMissing || response.keywordsMissing.length === 0
+    const hasZeroMatchScore = response.matchScore === 0
+
+    return hasEmptySuggestions && hasEmptyKeywordsMatched && hasEmptyKeywordsMissing && hasZeroMatchScore
+  }
+
   // Function to analyze resume against job description
   const analyzeResume = async () => {
     setIsAnalyzing(true)
     setError(null)
+    setUsingMockData(false)
+    setRawResponse(null)
 
     try {
       // First, check if API key is available from localStorage based on selected provider
@@ -92,18 +113,47 @@ Nice to have:
         throw new Error(`${provider.toUpperCase()} API key is required. Please add it in the Settings page.`)
       }
 
+      console.log(`Sending request to backend with provider: ${provider}`)
+      console.log(`Resume length: ${resumeText.length} characters`)
+      console.log(`Job description length: ${jobDescription.length} characters`)
+
       // Call the backend API
       const response = await tailorResume(resumeText, jobDescription, storedApiKey, provider)
-      setResults(response)
+
+      // Store raw response for debugging
+      setRawResponse(response)
+
+      // Add detailed logging
+      console.log("AI Tailor Raw Response:", JSON.stringify(response, null, 2))
+
+      // Check if response is empty (all arrays empty and matchScore is 0)
+      if (isEmptyResponse(response)) {
+        console.warn("Received empty response from backend. Falling back to mock data.")
+        setResults(mockData.tailorResponse)
+        setUsingMockData(true)
+        setError(
+          "Received empty response from backend. Using sample data instead. This may indicate an issue with the AI provider's response formatting.",
+        )
+      } else {
+        console.log("Using real data from backend")
+        setResults(response)
+      }
     } catch (err) {
       console.error("Error analyzing resume:", err)
       setError(err.message || "Failed to analyze resume. Please try again.")
 
-      // For demo purposes, use mock data if backend is not available
+      // Check if we're using mock data due to network error
       if (err.message.includes("Failed to fetch") || err.message.includes("Network Error")) {
-        console.log("Using mock data for demo")
+        console.log("Using mock data due to network error")
         setResults(mockData.tailorResponse)
+        setUsingMockData(true)
         setError("Using sample data (backend not available)")
+      } else {
+        // This is a real error from the backend, but we'll still show mock data
+        console.log("Using mock data due to backend error:", err.message)
+        setResults(mockData.tailorResponse)
+        setUsingMockData(true)
+        setError(`Backend error: ${err.message}. Using sample data instead.`)
       }
     } finally {
       setIsAnalyzing(false)
@@ -114,6 +164,15 @@ Nice to have:
   const loadSampleData = () => {
     setResumeText(sampleResume)
     setJobDescription(sampleJobDescription)
+  }
+
+  // Add functions for action feedback
+  const handleApplySuggestions = () => {
+    alert("Applying suggestions to resume! (Demo functionality)")
+  }
+
+  const handleGenerateOptimized = () => {
+    alert("Generating optimized resume! (Demo functionality)")
   }
 
   return (
@@ -226,8 +285,22 @@ Nice to have:
               <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm text-yellow-700">{error}</p>
-                <p className="text-xs text-yellow-600 mt-1">Results shown are sample data for demonstration.</p>
+                {usingMockData && (
+                  <p className="text-xs text-yellow-600 mt-1">Results shown are sample data for demonstration.</p>
+                )}
               </div>
+            </div>
+          )}
+
+          {/* Raw Response (for debugging) */}
+          {rawResponse && (
+            <div className="p-4 rounded-md bg-gray-50 border border-gray-200">
+              <details>
+                <summary className="cursor-pointer font-medium">Debug: Raw Response</summary>
+                <pre className="mt-2 text-xs overflow-auto max-h-40 p-2 bg-gray-100 rounded">
+                  {JSON.stringify(rawResponse, null, 2)}
+                </pre>
+              </details>
             </div>
           )}
 
@@ -312,31 +385,37 @@ Nice to have:
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">Suggested Improvements</h3>
               <div className="space-y-4">
-                {results.suggestions.map((suggestion, index) => (
-                  <div key={index} className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted p-4">
-                      <div className="flex items-start space-x-2">
-                        <X className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-medium">Original Text:</div>
-                          <p className="text-muted-foreground">{suggestion.originalText}</p>
+                {results.suggestions && results.suggestions.length > 0 ? (
+                  results.suggestions.map((suggestion, index) => (
+                    <div key={index} className="border rounded-lg overflow-hidden">
+                      <div className="bg-muted p-4">
+                        <div className="flex items-start space-x-2">
+                          <X className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                          <div>
+                            <div className="font-medium">Original Text:</div>
+                            <p className="text-muted-foreground">{suggestion.originalText}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4 border-t">
+                        <div className="flex items-start space-x-2">
+                          <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                          <div>
+                            <div className="font-medium">Improved Version:</div>
+                            <p>{suggestion.suggestedText}</p>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              <span className="font-medium">Why:</span> {suggestion.reason}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="p-4 border-t">
-                      <div className="flex items-start space-x-2">
-                        <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-medium">Improved Version:</div>
-                          <p>{suggestion.suggestedText}</p>
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            <span className="font-medium">Why:</span> {suggestion.reason}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center p-6 bg-muted/20 rounded-lg">
+                    <p className="text-muted-foreground">No suggestions available.</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           )}
@@ -349,13 +428,14 @@ Nice to have:
                   <h3 className="text-lg font-semibold">Skills to Highlight</h3>
                   <div className="bg-card border rounded-lg p-4">
                     <ul className="space-y-2">
-                      {results.keywordsMatched?.map((skill, index) => (
-                        <li key={index} className="flex items-center space-x-2">
-                          <Check className="h-4 w-4 text-green-500" />
-                          <span>{skill}</span>
-                        </li>
-                      ))}
-                      {results.keywordsMatched?.length === 0 && (
+                      {results.keywordsMatched && results.keywordsMatched.length > 0 ? (
+                        results.keywordsMatched.map((skill, index) => (
+                          <li key={index} className="flex items-center space-x-2">
+                            <Check className="h-4 w-4 text-green-500" />
+                            <span>{skill}</span>
+                          </li>
+                        ))
+                      ) : (
                         <li className="text-muted-foreground">No matched skills found</li>
                       )}
                     </ul>
@@ -367,13 +447,14 @@ Nice to have:
                   <h3 className="text-lg font-semibold">Skills to Add</h3>
                   <div className="bg-card border rounded-lg p-4">
                     <ul className="space-y-2">
-                      {results.keywordsMissing?.map((skill, index) => (
-                        <li key={index} className="flex items-center space-x-2">
-                          <ArrowRight className="h-4 w-4 text-primary" />
-                          <span>{skill}</span>
-                        </li>
-                      ))}
-                      {results.keywordsMissing?.length === 0 && (
+                      {results.keywordsMissing && results.keywordsMissing.length > 0 ? (
+                        results.keywordsMissing.map((skill, index) => (
+                          <li key={index} className="flex items-center space-x-2">
+                            <ArrowRight className="h-4 w-4 text-primary" />
+                            <span>{skill}</span>
+                          </li>
+                        ))
+                      ) : (
                         <li className="text-muted-foreground">No missing skills detected</li>
                       )}
                     </ul>
@@ -385,12 +466,13 @@ Nice to have:
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Missing Keywords</h3>
                 <div className="flex flex-wrap gap-2">
-                  {results.keywordsMissing?.map((keyword, index) => (
-                    <span key={index} className="px-3 py-1 bg-muted rounded-full text-sm font-medium">
-                      {keyword}
-                    </span>
-                  ))}
-                  {results.keywordsMissing?.length === 0 && (
+                  {results.keywordsMissing && results.keywordsMissing.length > 0 ? (
+                    results.keywordsMissing.map((keyword, index) => (
+                      <span key={index} className="px-3 py-1 bg-muted rounded-full text-sm font-medium">
+                        {keyword}
+                      </span>
+                    ))
+                  ) : (
                     <span className="text-muted-foreground">No missing keywords detected</span>
                   )}
                 </div>
@@ -400,11 +482,17 @@ Nice to have:
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-4 justify-center pt-4">
-            <button className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+            <button
+              onClick={handleApplySuggestions}
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
               <FileText className="h-5 w-5" />
               <span>Apply Suggestions to Resume</span>
             </button>
-            <button className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors">
+            <button
+              onClick={handleGenerateOptimized}
+              className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
               <Sparkles className="h-5 w-5" />
               <span>Generate Optimized Resume</span>
             </button>
