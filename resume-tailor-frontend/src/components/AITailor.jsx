@@ -168,11 +168,21 @@ Nice to have:
 
   // Add functions for action feedback
   const handleApplySuggestions = () => {
-    alert("Applying suggestions to resume! (Demo functionality)")
+    setApplyFeedback(true)
+    // Simulate applying suggestions
+    setTimeout(() => {
+      setApplyFeedback(false)
+      alert("Suggestions applied to resume! (Demo functionality)")
+    }, 1500)
   }
 
   const handleGenerateOptimized = () => {
-    alert("Generating optimized resume! (Demo functionality)")
+    setGenerateFeedback(true)
+    // Simulate generating optimized resume
+    setTimeout(() => {
+      setGenerateFeedback(false)
+      alert("Optimized resume generated! (Demo functionality)")
+    }, 1500)
   }
 
   return (
@@ -484,17 +494,23 @@ Nice to have:
           <div className="flex flex-wrap gap-4 justify-center pt-4">
             <button
               onClick={handleApplySuggestions}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                applyFeedback ? "bg-green-500 text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
+              }`}
             >
               <FileText className="h-5 w-5" />
-              <span>Apply Suggestions to Resume</span>
+              <span>{applyFeedback ? "Applying..." : "Apply Suggestions to Resume"}</span>
             </button>
             <button
               onClick={handleGenerateOptimized}
-              className="flex items-center space-x-2 px-4 py-2 rounded-lg border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors"
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                generateFeedback
+                  ? "bg-green-500 text-white"
+                  : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+              }`}
             >
               <Sparkles className="h-5 w-5" />
-              <span>Generate Optimized Resume</span>
+              <span>{generateFeedback ? "Generating..." : "Generate Optimized Resume"}</span>
             </button>
           </div>
         </div>

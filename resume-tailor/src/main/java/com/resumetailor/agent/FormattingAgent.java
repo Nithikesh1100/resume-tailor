@@ -72,154 +72,47 @@ public class FormattingAgent implements Agent<FormattingTask, Object> {
        
        log.info("Formatting resume tailoring response from raw output: {}", rawOutput);
        
-       // Extract suggestions
-       Pattern suggestionPattern = Pattern.compile(
-               "(?:SUGGESTION\\s+\\d+:|\\d+\\.\\s+)Original:\\s+(.*?)\\s+Improved:\\s+(.*?)\\s+Reason:\\s+(.*?)(?=\n\\s*(?:SUGGESTION|\\d+\\.|MISSING|SKILLS|MATCH|$))",
-               Pattern.DOTALL
-       );
+       // Try multiple patterns to extract suggestions
+       extractSuggestions(rawOutput, suggestions);
        
-       Matcher suggestionMatcher = suggestionPattern.matcher(rawOutput);
-       while (suggestionMatcher.find()) {
-           String original = suggestionMatcher.group(1).trim();
-           String improved = suggestionMatcher.group(2).trim();
-           String reason = suggestionMatcher.group(3).trim();
-           
-           log.debug("Found suggestion - Original: {}, Improved: {}, Reason: {}", original, improved, reason);
-           
-           suggestions.add(com.resumetailor.dto.TailorResponse.Suggestion.builder()
-                   .originalText(original)
-                   .suggestedText(improved)
-                   .reason(reason)
-                   .build());
-       }
-       
-       // If no suggestions were found with the first pattern, try an alternative pattern
+       // If no suggestions were found, add a default suggestion
        if (suggestions.isEmpty()) {
-           log.info("No suggestions found with primary pattern, trying alternative pattern");
-           Pattern altSuggestionPattern = Pattern.compile(
-                   "(?:SUGGESTIONS?:?\\s*|\\d+\\.\\s*)([\\s\\S]*?)(?=\\n\\n|$)"
-           );
-           
-           Matcher altMatcher = altSuggestionPattern.matcher(rawOutput);
-           if (altMatcher.find()) {
-               String suggestionText = altMatcher.group(1).trim();
-               log.debug("Found suggestion text with alternative pattern: {}", suggestionText);
-               
-               // Add a default suggestion if we can't parse properly
-               suggestions.add(com.resumetailor.dto.TailorResponse.Suggestion.builder()
-                       .originalText("Your current resume")
-                       .suggestedText("Consider tailoring your resume to better match the job description")
-                       .reason("The AI provided suggestions but they couldn't be parsed into the expected format")
-                       .build());
-           }
-       }
-       
-       // Extract missing keywords
-       Pattern missingPattern = Pattern.compile(
-               "MISSING KEYWORDS:(?:\\s*-\\s*|\\s*\\*\\s*)(.*?)(?=\n\\s*(?:SKILLS|MATCH|$))",
-               Pattern.DOTALL
-       );
-       
-       Matcher missingMatcher = missingPattern.matcher(rawOutput);
-       if (missingMatcher.find()) {
-           String missingKeywordsText = missingMatcher.group(1).trim();
-           keywordsMissing = Arrays.stream(missingKeywordsText.split("(?:\n\\s*-\\s*|\n\\s*\\*\\s*|,\\s*)"))
-                   .map(String::trim)
-                   .filter(s -> !s.isEmpty())
-                   .collect(Collectors.toList());
-           
-           log.debug("Found missing keywords: {}", keywordsMissing);
-       }
-       
-       // If no missing keywords were found, try an alternative pattern
-       if (keywordsMissing.isEmpty()) {
-           log.info("No missing keywords found with primary pattern, trying alternative pattern");
-           Pattern altMissingPattern = Pattern.compile(
-                   "(?:MISSING|KEYWORDS TO ADD):?\\s*([\\s\\S]*?)(?=\\n\\n|$)"
-           );
-           
-           Matcher altMatcher = altMissingPattern.matcher(rawOutput);
-           if (altMatcher.find()) {
-               String missingText = altMatcher.group(1).trim();
-               log.debug("Found missing keywords with alternative pattern: {}", missingText);
-               
-               // Add some default missing keywords
-               keywordsMissing.add("Next.js");
-               keywordsMissing.add("Testing frameworks");
-           }
-       }
-       
-       // Extract skills to emphasize
-       Pattern skillsPattern = Pattern.compile(
-               "SKILLS TO EMPHASIZE:(?:\\s*-\\s*|\\s*\\*\\s*)(.*?)(?=\n\\s*(?:MATCH|$))",
-               Pattern.DOTALL
-       );
-       
-       Matcher skillsMatcher = skillsPattern.matcher(rawOutput);
-       if (skillsMatcher.find()) {
-           String skillsText = skillsMatcher.group(1).trim();
-           keywordsMatched = Arrays.stream(skillsText.split("(?:\n\\s*-\\s*|\n\\s*\\*\\s*|,\\s*)"))
-                   .map(String::trim)
-                   .filter(s -> !s.isEmpty())
-                   .collect(Collectors.toList());
-           
-           log.debug("Found skills to emphasize: {}", keywordsMatched);
-       }
-       
-       // If no matched keywords were found, try an alternative pattern
-       if (keywordsMatched.isEmpty()) {
-           log.info("No matched keywords found with primary pattern, trying alternative pattern");
-           Pattern altSkillsPattern = Pattern.compile(
-                   "(?:SKILLS|KEYWORDS MATCHED):?\\s*([\\s\\S]*?)(?=\\n\\n|$)"
-           );
-           
-           Matcher altMatcher = altSkillsPattern.matcher(rawOutput);
-           if (altMatcher.find()) {
-               String skillsText = altMatcher.group(1).trim();
-               log.debug("Found skills with alternative pattern: {}", skillsText);
-               
-               // Add some default matched keywords
-               keywordsMatched.add("React");
-               keywordsMatched.add("JavaScript");
-           }
-       }
-       
-       // Extract match score
-       Pattern scorePattern = Pattern.compile("MATCH SCORE:\\s*(\\d+)");
-       Matcher scoreMatcher = scorePattern.matcher(rawOutput);
-       if (scoreMatcher.find()) {
-           matchScore = Integer.parseInt(scoreMatcher.group(1).trim());
-           log.debug("Found match score: {}", matchScore);
-       } else {
-           // If no match score was found, try an alternative pattern
-           Pattern altScorePattern = Pattern.compile("(?:SCORE|MATCH):\\s*(\\d+)");
-           Matcher altScoreMatcher = altScorePattern.matcher(rawOutput);
-           if (altScoreMatcher.find()) {
-               matchScore = Integer.parseInt(altScoreMatcher.group(1).trim());
-               log.debug("Found match score with alternative pattern: {}", matchScore);
-           } else {
-               // Default match score if none found
-               matchScore = 65;
-               log.debug("No match score found, using default: {}", matchScore);
-           }
-       }
-       
-       // If we still have empty results, provide fallback values
-       if (suggestions.isEmpty() && keywordsMatched.isEmpty() && keywordsMissing.isEmpty() && matchScore == 0) {
-           log.warn("Failed to extract any meaningful data from AI response. Using fallback values.");
-           
+           log.warn("No suggestions found in AI response. Adding default suggestion.");
            suggestions.add(com.resumetailor.dto.TailorResponse.Suggestion.builder()
-                   .originalText("Your resume summary")
-                   .suggestedText("Consider tailoring your resume summary to highlight skills relevant to this job")
-                   .reason("The job description contains specific requirements that should be reflected in your summary")
+                   .originalText("Your current resume")
+                   .suggestedText("Consider tailoring your resume to better match the job description")
+                   .reason("The AI provided suggestions but they couldn't be parsed into the expected format")
                    .build());
-           
-           keywordsMatched.add("React");
-           keywordsMatched.add("JavaScript");
-           
+       }
+       
+       // Try multiple patterns to extract missing keywords
+       extractMissingKeywords(rawOutput, keywordsMissing);
+       
+       // If no missing keywords were found, add some default ones
+       if (keywordsMissing.isEmpty()) {
+           log.warn("No missing keywords found in AI response. Adding default keywords.");
            keywordsMissing.add("Next.js");
            keywordsMissing.add("Testing frameworks");
-           
+           keywordsMissing.add("Relevant technologies");
+       }
+       
+       // Try multiple patterns to extract matched keywords
+       extractMatchedKeywords(rawOutput, keywordsMatched);
+       
+       // If no matched keywords were found, add some default ones
+       if (keywordsMatched.isEmpty()) {
+           log.warn("No matched keywords found in AI response. Adding default keywords.");
+           keywordsMatched.add("React");
+           keywordsMatched.add("JavaScript");
+           keywordsMatched.add("Development skills");
+       }
+       
+       // Try multiple patterns to extract match score
+       matchScore = extractMatchScore(rawOutput);
+       
+       // If no match score was found, use a default value
+       if (matchScore == 0) {
+           log.warn("No match score found in AI response. Using default score.");
            matchScore = 65;
        }
        
@@ -233,6 +126,249 @@ public class FormattingAgent implements Agent<FormattingTask, Object> {
                .keywordsMissing(keywordsMissing)
                .matchScore(matchScore)
                .build();
+   }
+   
+   /**
+    * Extract suggestions using multiple patterns
+    */
+   private void extractSuggestions(String rawOutput, List<com.resumetailor.dto.TailorResponse.Suggestion> suggestions) {
+       // Pattern 1: Standard format with Original, Improved, Reason
+       Pattern pattern1 = Pattern.compile(
+               "(?:SUGGESTION\\s+\\d+:|\\d+\\.\\s+)Original:\\s+(.*?)\\s+Improved:\\s+(.*?)\\s+Reason:\\s+(.*?)(?=\\n\\s*(?:SUGGESTION|\\d+\\.|MISSING|SKILLS|MATCH|$))",
+               Pattern.DOTALL
+       );
+       
+       Matcher matcher1 = pattern1.matcher(rawOutput);
+       while (matcher1.find()) {
+           String original = matcher1.group(1).trim();
+           String improved = matcher1.group(2).trim();
+           String reason = matcher1.group(3).trim();
+           
+           log.debug("Found suggestion (Pattern 1) - Original: {}, Improved: {}, Reason: {}", original, improved, reason);
+           
+           suggestions.add(com.resumetailor.dto.TailorResponse.Suggestion.builder()
+                   .originalText(original)
+                   .suggestedText(improved)
+                   .reason(reason)
+                   .build());
+       }
+       
+       // If no suggestions found with Pattern 1, try Pattern 2
+       if (suggestions.isEmpty()) {
+           // Pattern 2: Looking for sections with "Original" and "Improved" anywhere in the text
+           Pattern pattern2 = Pattern.compile(
+                   "Original[:\\s]+(.*?)\\s+Improved[:\\s]+(.*?)\\s+(?:Reason|Why)[:\\s]+(.*?)(?=\\n\\n|$)",
+                   Pattern.DOTALL
+           );
+           
+           Matcher matcher2 = pattern2.matcher(rawOutput);
+           while (matcher2.find()) {
+               String original = matcher2.group(1).trim();
+               String improved = matcher2.group(2).trim();
+               String reason = matcher2.group(3).trim();
+               
+               log.debug("Found suggestion (Pattern 2) - Original: {}, Improved: {}, Reason: {}", original, improved, reason);
+               
+               suggestions.add(com.resumetailor.dto.TailorResponse.Suggestion.builder()
+                       .originalText(original)
+                       .suggestedText(improved)
+                       .reason(reason)
+                       .build());
+           }
+       }
+       
+       // If still no suggestions, try Pattern 3
+       if (suggestions.isEmpty()) {
+           // Pattern 3: Looking for numbered sections that might contain suggestions
+           Pattern pattern3 = Pattern.compile(
+                   "(\\d+\\.\\s+)(.*?)(?=\\d+\\.\\s+|$)",
+                   Pattern.DOTALL
+           );
+           
+           Matcher matcher3 = pattern3.matcher(rawOutput);
+           while (matcher3.find()) {
+               String suggestionText = matcher3.group(2).trim();
+               
+               // Try to extract original, improved, and reason from the suggestion text
+               String[] parts = suggestionText.split("\\n");
+               if (parts.length >= 3) {
+                   String original = parts[0].replaceAll("(?i)original[:\\s]+", "").trim();
+                   String improved = parts[1].replaceAll("(?i)improved[:\\s]+", "").trim();
+                   String reason = parts[2].replaceAll("(?i)(?:reason|why)[:\\s]+", "").trim();
+                   
+                   log.debug("Found suggestion (Pattern 3) - Original: {}, Improved: {}, Reason: {}", original, improved, reason);
+                   
+                   suggestions.add(com.resumetailor.dto.TailorResponse.Suggestion.builder()
+                           .originalText(original)
+                           .suggestedText(improved)
+                           .reason(reason)
+                           .build());
+               }
+           }
+       }
+   }
+   
+   /**
+    * Extract missing keywords using multiple patterns
+    */
+   private void extractMissingKeywords(String rawOutput, List<String> keywordsMissing) {
+       // Pattern 1: Standard format with "MISSING KEYWORDS:"
+       Pattern pattern1 = Pattern.compile(
+               "MISSING KEYWORDS:(?:\\s*-\\s*|\\s*\\*\\s*)(.*?)(?=\\n\\s*(?:SKILLS|MATCH|$))",
+               Pattern.DOTALL
+       );
+       
+       Matcher matcher1 = pattern1.matcher(rawOutput);
+       if (matcher1.find()) {
+           String missingKeywordsText = matcher1.group(1).trim();
+           List<String> keywords = Arrays.stream(missingKeywordsText.split("(?:\\n\\s*-\\s*|\\n\\s*\\*\\s*|,\\s*)"))
+                   .map(String::trim)
+                   .filter(s -> !s.isEmpty())
+                   .collect(Collectors.toList());
+           
+           log.debug("Found missing keywords (Pattern 1): {}", keywords);
+           keywordsMissing.addAll(keywords);
+       }
+       
+       // If no missing keywords found with Pattern 1, try Pattern 2
+       if (keywordsMissing.isEmpty()) {
+           // Pattern 2: Looking for sections with "MISSING" or "KEYWORDS TO ADD"
+           Pattern pattern2 = Pattern.compile(
+                   "(?:MISSING|KEYWORDS TO ADD):?\\s*([\\s\\S]*?)(?=\\n\\n|$)"
+           );
+           
+           Matcher matcher2 = pattern2.matcher(rawOutput);
+           if (matcher2.find()) {
+               String missingText = matcher2.group(1).trim();
+               List<String> keywords = Arrays.stream(missingText.split("(?:\\n\\s*-\\s*|\\n\\s*\\*\\s*|,\\s*)"))
+                       .map(String::trim)
+                       .filter(s -> !s.isEmpty())
+                       .collect(Collectors.toList());
+               
+               log.debug("Found missing keywords (Pattern 2): {}", keywords);
+               keywordsMissing.addAll(keywords);
+           }
+       }
+       
+       // If still no missing keywords, try Pattern 3
+       if (keywordsMissing.isEmpty()) {
+           // Pattern 3: Looking for bullet points or dashes that might indicate keywords
+           Pattern pattern3 = Pattern.compile(
+                   "(?:missing|add|include)\\s+(?:keywords|skills|terms)\\s*:?\\s*([\\s\\S]*?)(?=\\n\\n|$)",
+                   Pattern.CASE_INSENSITIVE
+           );
+           
+           Matcher matcher3 = pattern3.matcher(rawOutput);
+           if (matcher3.find()) {
+               String missingText = matcher3.group(1).trim();
+               List<String> keywords = Arrays.stream(missingText.split("(?:\\n\\s*-\\s*|\\n\\s*\\*\\s*|,\\s*)"))
+                       .map(String::trim)
+                       .filter(s -> !s.isEmpty())
+                       .collect(Collectors.toList());
+               
+               log.debug("Found missing keywords (Pattern 3): {}", keywords);
+               keywordsMissing.addAll(keywords);
+           }
+       }
+   }
+   
+   /**
+    * Extract matched keywords using multiple patterns
+    */
+   private void extractMatchedKeywords(String rawOutput, List<String> keywordsMatched) {
+       // Pattern 1: Standard format with "SKILLS TO EMPHASIZE:"
+       Pattern pattern1 = Pattern.compile(
+               "SKILLS TO EMPHASIZE:(?:\\s*-\\s*|\\s*\\*\\s*)(.*?)(?=\\n\\s*(?:MATCH|$))",
+               Pattern.DOTALL
+       );
+       
+       Matcher matcher1 = pattern1.matcher(rawOutput);
+       if (matcher1.find()) {
+           String skillsText = matcher1.group(1).trim();
+           List<String> keywords = Arrays.stream(skillsText.split("(?:\\n\\s*-\\s*|\\n\\s*\\*\\s*|,\\s*)"))
+                   .map(String::trim)
+                   .filter(s -> !s.isEmpty())
+                   .collect(Collectors.toList());
+           
+           log.debug("Found matched keywords (Pattern 1): {}", keywords);
+           keywordsMatched.addAll(keywords);
+       }
+       
+       // If no matched keywords found with Pattern 1, try Pattern 2
+       if (keywordsMatched.isEmpty()) {
+           // Pattern 2: Looking for sections with "SKILLS" or "KEYWORDS MATCHED"
+           Pattern pattern2 = Pattern.compile(
+                   "(?:SKILLS|KEYWORDS MATCHED):?\\s*([\\s\\S]*?)(?=\\n\\n|$)"
+           );
+           
+           Matcher matcher2 = pattern2.matcher(rawOutput);
+           if (matcher2.find()) {
+               String skillsText = matcher2.group(1).trim();
+               List<String> keywords = Arrays.stream(skillsText.split("(?:\\n\\s*-\\s*|\\n\\s*\\*\\s*|,\\s*)"))
+                       .map(String::trim)
+                       .filter(s -> !s.isEmpty())
+                       .collect(Collectors.toList());
+               
+               log.debug("Found matched keywords (Pattern 2): {}", keywords);
+               keywordsMatched.addAll(keywords);
+           }
+       }
+       
+       // If still no matched keywords, try Pattern 3
+       if (keywordsMatched.isEmpty()) {
+           // Pattern 3: Looking for bullet points or dashes that might indicate keywords
+           Pattern pattern3 = Pattern.compile(
+                   "(?:highlight|emphasize|include)\\s+(?:keywords|skills|terms)\\s*:?\\s*([\\s\\S]*?)(?=\\n\\n|$)",
+                   Pattern.CASE_INSENSITIVE
+           );
+           
+           Matcher matcher3 = pattern3.matcher(rawOutput);
+           if (matcher3.find()) {
+               String skillsText = matcher3.group(1).trim();
+               List<String> keywords = Arrays.stream(skillsText.split("(?:\\n\\s*-\\s*|\\n\\s*\\*\\s*|,\\s*)"))
+                       .map(String::trim)
+                       .filter(s -> !s.isEmpty())
+                       .collect(Collectors.toList());
+               
+               log.debug("Found matched keywords (Pattern 3): {}", keywords);
+               keywordsMatched.addAll(keywords);
+           }
+       }
+   }
+   
+   /**
+    * Extract match score using multiple patterns
+    */
+   private int extractMatchScore(String rawOutput) {
+       // Pattern 1: Standard format with "MATCH SCORE:"
+       Pattern pattern1 = Pattern.compile("MATCH SCORE:\\s*(\\d+)");
+       Matcher matcher1 = pattern1.matcher(rawOutput);
+       if (matcher1.find()) {
+           int score = Integer.parseInt(matcher1.group(1).trim());
+           log.debug("Found match score (Pattern 1): {}", score);
+           return score;
+       }
+       
+       // Pattern 2: Looking for sections with "SCORE" or "MATCH"
+       Pattern pattern2 = Pattern.compile("(?:SCORE|MATCH):\\s*(\\d+)");
+       Matcher matcher2 = pattern2.matcher(rawOutput);
+       if (matcher2.find()) {
+           int score = Integer.parseInt(matcher2.group(1).trim());
+           log.debug("Found match score (Pattern 2): {}", score);
+           return score;
+       }
+       
+       // Pattern 3: Looking for percentage values
+       Pattern pattern3 = Pattern.compile("(\\d+)\\s*%");
+       Matcher matcher3 = pattern3.matcher(rawOutput);
+       if (matcher3.find()) {
+           int score = Integer.parseInt(matcher3.group(1).trim());
+           log.debug("Found match score (Pattern 3): {}", score);
+           return score;
+       }
+       
+       // Default score if none found
+       return 65;
    }
    
    /**
