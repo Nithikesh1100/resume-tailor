@@ -19,9 +19,11 @@ export default function Settings() {
   const [selectedProvider, setSelectedProvider] = useState("openai")
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null) // null, 'success', 'error'
+  const [mounted, setMounted] = useState(false)
 
   // Load saved API keys and settings on component mount
   useEffect(() => {
+    setMounted(true)
     const openaiKey = localStorage.getItem("openai_api_key") || ""
     const groqKey = localStorage.getItem("groq_api_key") || ""
     const githubKey = localStorage.getItem("github_api_key") || ""
@@ -82,6 +84,10 @@ export default function Settings() {
       setSaveStatus("error")
       setIsSaving(false)
     }
+  }
+
+  if (!mounted) {
+    return null // Return null on server-side to prevent hydration mismatch
   }
 
   return (

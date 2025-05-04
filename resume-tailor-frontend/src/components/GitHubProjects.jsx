@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { Github, Search, Star, GitFork, Code, ExternalLink, Plus, Check, AlertTriangle } from "lucide-react"
-import { fetchGitHubProjects, mockData } from "../services/api"
+import { useState, useEffect } from "react"
+import { Github, Search, Star, GitFork, Code, ExternalLink, Plus, Check, AlertTriangle, Loader2 } from "lucide-react"
+import { fetchGitHubProjects } from "../services/api"
 
 export default function GitHubProjects() {
   const [username, setUsername] = useState("")
@@ -11,33 +11,49 @@ export default function GitHubProjects() {
   const [projects, setProjects] = useState([])
   const [selectedProjects, setSelectedProjects] = useState([])
   const [error, setError] = useState("")
+  const [apiKey, setApiKey] = useState("")
+  const [usingMockData, setUsingMockData] = useState(false)
+  const [addingToResume, setAddingToResume] = useState(false)
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false)
+
+  // Load GitHub token from localStorage on component mount
+  useEffect(() => {
+    const storedApiKey = localStorage.getItem("github_api_key") || ""
+    setApiKey(storedApiKey)
+    setShowApiKeyInput(!storedApiKey)
+  }, [])
 
   // Function to fetch GitHub projects
   const fetchProjects = async () => {
     setIsLoading(true)
     setError("")
+    setUsingMockData(false)
+    setProjects([])
 
     try {
       if (username.trim() === "") {
         throw new Error("Please enter a GitHub username")
       }
 
+      console.log(`Fetching GitHub projects for username: ${username}`)
+      console.log(`Job description provided: ${jobDescription ? "Yes" : "No"}`)
+      console.log(`GitHub token provided: ${apiKey ? "Yes" : "No"}`)
+
       // Call the backend API
-      const response = await fetchGitHubProjects(username, jobDescription)
-      setProjects(response.repositories || [])
+      const response = await fetchGitHubProjects(username, jobDescription, apiKey)
+
+      console.log("GitHub API Response:", response)
+
+      if (!response || !response.repositories || response.repositories.length === 0) {
+        setError("No repositories found for this username")
+        setProjects([])
+      } else {
+        setProjects(response.repositories || [])
+      }
     } catch (err) {
       console.error("Error fetching GitHub projects:", err)
       setError(err.message || "Failed to fetch GitHub projects. Please try again.")
-
-      // For demo purposes, use mock data if backend is not available
-      if (err.message.includes("Failed to fetch") || err.message.includes("Network Error")) {
-        console.log("Using mock data for demo")
-        setProjects(mockData.githubResponse.repositories || [])
-        setError("Using sample data (backend not available)")
-      } else if (username.toLowerCase() === "error") {
-        setError("User not found or API rate limit exceeded")
-        setProjects([])
-      }
+      setProjects([])
     } finally {
       setIsLoading(false)
     }
@@ -59,23 +75,39 @@ export default function GitHubProjects() {
   }
 
   // Add selected projects to resume
-  const addProjectsToResume = () => {
+  const addProjectsToResume = async () => {
     if (selectedProjects.length === 0) return
 
-    // Get selected project details
-    const projectsToAdd = projects.filter((project) => selectedProjects.includes(project.id))
+    setAddingToResume(true)
 
-    // Store in localStorage to be used in resume editor
     try {
+      // Get selected project details
+      const projectsToAdd = projects.filter((project) => selectedProjects.includes(project.id))
+
+      // Format projects for resume
+      const formattedProjects = projectsToAdd.map((project) => ({
+        name: project.name,
+        description: project.description,
+        url: project.htmlUrl,
+        technologies: project.topics || [],
+        relevanceScore: project.relevanceScore || 0,
+      }))
+
+      // Store in localStorage to be used in resume editor
       const existingProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]")
-      const combinedProjects = [...existingProjects, ...projectsToAdd]
+      const combinedProjects = [...existingProjects, ...formattedProjects]
       localStorage.setItem("githubProjects", JSON.stringify(combinedProjects))
+
+      // Simulate API call delay
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
       alert(`${selectedProjects.length} projects added to your resume! You can now include them in your resume editor.`)
       setSelectedProjects([])
     } catch (err) {
       console.error("Error saving projects:", err)
       alert("Failed to save projects. Please try again.")
+    } finally {
+      setAddingToResume(false)
     }
   }
 
@@ -122,7 +154,7 @@ export default function GitHubProjects() {
           >
             {isLoading ? (
               <>
-                <Search className="h-5 w-5 animate-pulse" />
+                <Loader2 className="h-5 w-5 animate-spin" />
                 <span>Searching...</span>
               </>
             ) : (
@@ -134,10 +166,35 @@ export default function GitHubProjects() {
           </button>
         </div>
 
-        {/* For demo purposes */}
-        <p className="text-sm text-muted-foreground">
-          Try "johndoe" for sample projects or "error" to simulate an error.
-        </p>
+        {/* GitHub API Key input (shown only if not available in settings) */}
+        {showApiKeyInput && (
+          <div className="space-y-2">
+            <label htmlFor="github-api-key" className="text-sm font-medium">
+              GitHub Personal Access Token (Optional)
+            </label>
+            <div className="flex flex-col">
+              <input
+                id="github-api-key"
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="ghp_..."
+                className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                A token allows access to private repositories and increases API rate limits.
+                <a
+                  href="https://github.com/settings/tokens"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-1 text-primary hover:underline"
+                >
+                  Create a token
+                </a>
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Error message */}
         {error && (
@@ -145,7 +202,7 @@ export default function GitHubProjects() {
             <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
             <div>
               <p className="text-sm text-yellow-700">{error}</p>
-              {error.includes("sample data") && (
+              {usingMockData && (
                 <p className="text-xs text-yellow-600 mt-1">Results shown are sample data for demonstration.</p>
               )}
             </div>
@@ -160,11 +217,20 @@ export default function GitHubProjects() {
             <h2 className="text-xl font-semibold">Found {projects.length} repositories</h2>
             <button
               onClick={addProjectsToResume}
-              disabled={selectedProjects.length === 0}
+              disabled={selectedProjects.length === 0 || addingToResume}
               className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Plus className="h-5 w-5" />
-              <span>Add to Resume ({selectedProjects.length})</span>
+              {addingToResume ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Adding...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="h-5 w-5" />
+                  <span>Add to Resume ({selectedProjects.length})</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -181,10 +247,10 @@ export default function GitHubProjects() {
                     <div className="flex items-center space-x-2">
                       <h3 className="text-lg font-semibold">{project.name}</h3>
                       <span className="px-2 py-0.5 text-xs rounded-full bg-secondary text-secondary-foreground">
-                        {project.language}
+                        {project.language || "Unknown"}
                       </span>
                     </div>
-                    <p className="text-muted-foreground">{project.description}</p>
+                    <p className="text-muted-foreground">{project.description || "No description available"}</p>
                   </div>
                   <button
                     onClick={() => toggleProjectSelection(project.id)}
@@ -208,19 +274,22 @@ export default function GitHubProjects() {
                       {topic}
                     </span>
                   ))}
+                  {(!project.topics || project.topics.length === 0) && (
+                    <span className="text-xs text-muted-foreground">No topics available</span>
+                  )}
                 </div>
 
                 <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-1">
                       <Star className="h-4 w-4" />
-                      <span>{project.stars}</span>
+                      <span>{project.stars || 0}</span>
                     </div>
                     <div className="flex items-center space-x-1">
                       <GitFork className="h-4 w-4" />
-                      <span>{project.forks}</span>
+                      <span>{project.forks || 0}</span>
                     </div>
-                    <div>Updated {formatDate(project.updatedAt)}</div>
+                    <div>Updated {formatDate(project.updatedAt || new Date())}</div>
                   </div>
                   <div className="flex space-x-2">
                     <a
@@ -274,6 +343,17 @@ export default function GitHubProjects() {
           <h3 className="text-lg font-medium">No GitHub projects found</h3>
           <p className="text-muted-foreground mt-2 max-w-md mx-auto">
             Enter your GitHub username to fetch your repositories and add them to your resume.
+          </p>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="text-center py-12">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+          <h3 className="text-lg font-medium mt-4">Fetching repositories...</h3>
+          <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+            This may take a moment depending on the number of repositories.
           </p>
         </div>
       )}

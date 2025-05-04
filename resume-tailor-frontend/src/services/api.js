@@ -168,19 +168,32 @@ export async function generateCoverLetter(resumeContent, jobDescription, additio
  * Fetch GitHub projects for a user
  * @param {string} username - GitHub username
  * @param {string} jobDescription - Optional job description for relevance filtering
+ * @param {string} apiKey - Optional GitHub API token
  * @returns {Promise<Object>} - GitHub repositories
  */
-export async function fetchGitHubProjects(username, jobDescription = "") {
+export async function fetchGitHubProjects(username, jobDescription = "", apiKey = "") {
   try {
     const url = new URL(`${API_BASE_URL}/github/projects`)
     url.searchParams.append("username", username)
+
     if (jobDescription) {
       url.searchParams.append("jobDescription", jobDescription)
     }
 
-    console.log("Fetching GitHub projects from:", url.toString())
+    const headers = {
+      "Content-Type": "application/json",
+    }
 
-    const response = await fetch(url.toString())
+    if (apiKey && apiKey.trim() !== "") {
+      headers["X-GitHub-Token"] = apiKey
+    }
+
+    console.log("Fetching GitHub projects from:", url.toString())
+    console.log("Using GitHub token:", apiKey && apiKey.trim() !== "" ? "Yes" : "No")
+
+    const response = await fetch(url.toString(), {
+      headers: headers,
+    })
 
     // Log response status
     console.log("Response status:", response.status, response.statusText)
@@ -257,13 +270,6 @@ export async function compileToPdf(latexContent) {
 
     return await response.blob()
   } catch (error) {
-    console.error("Error compiling PDF:", error)
-    throw error
-  }
-}
-
-/**
- * Mock data for testing  {
     console.error("Error compiling PDF:", error)
     throw error
   }

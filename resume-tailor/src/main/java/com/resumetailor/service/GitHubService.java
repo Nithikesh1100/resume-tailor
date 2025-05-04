@@ -5,6 +5,7 @@ import com.resumetailor.util.GitHubUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -32,10 +33,12 @@ public class GitHubService {
      *
      * @param username GitHub username
      * @param jobDescription Optional job description to filter relevant repositories
+     * @param githubToken Optional GitHub token for authentication
      * @return List of GitHub repositories
      */
-    public GitHubResponse getProjects(String username, String jobDescription) {
+    public GitHubResponse getProjects(String username, String jobDescription, String githubToken) {
         log.info("Fetching GitHub projects for user: {}", username);
+        log.info("Using GitHub token: {}", githubToken != null ? "Yes" : "No");
         
         if (username == null || username.isEmpty()) {
             throw new IllegalArgumentException("GitHub username cannot be empty");
@@ -43,7 +46,7 @@ public class GitHubService {
         
         try {
             // Fetch repositories from GitHub API
-            List<Map<String, Object>> repositories = fetchRepositories(username);
+            List<Map<String, Object>> repositories = fetchRepositories(username, githubToken);
             
             // Convert to GitHubResponse.Repository objects
             List<GitHubResponse.Repository> repoList = repositories.stream()
@@ -78,57 +81,35 @@ public class GitHubService {
     /**
      * Fetch repositories from GitHub API
      */
-    private List<Map<String, Object>> fetchRepositories(String username) {
-        // For demonstration purposes, return mock data
-        // In a real application, you would call the GitHub API
+    private List<Map<String, Object>> fetchRepositories(String username, String githubToken) {
+        log.info("Fetching repositories for user: {} using GitHub API", username);
         
-        if ("error".equalsIgnoreCase(username)) {
-            throw new RuntimeException("GitHub API error");
+        try {
+            // Create WebClient with base URL
+            WebClient client = webClientBuilder.baseUrl(githubApiUrl).build();
+            
+            // Build request
+            WebClient.RequestHeadersSpec<?> request = client.get()
+                    .uri("/users/{username}/repos?sort=updated&per_page=100", username);
+            
+            // Add GitHub token if provided
+            if (githubToken != null && !githubToken.isEmpty()) {
+                log.info("Using GitHub token for authentication");
+                request = request.header("Authorization", "token " + githubToken);
+            }
+            
+            // Execute request and get response
+            List<Map<String, Object>> repositories = request.retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {})
+                    .block();
+            
+            log.info("Successfully fetched {} repositories for user: {}", repositories.size(), username);
+            return repositories;
+            
+        } catch (Exception e) {
+            log.error("Error fetching repositories from GitHub API: {}", e.getMessage());
+            throw new RuntimeException("Failed to fetch GitHub repositories: " + e.getMessage(), e);
         }
-        
-        if ("empty".equalsIgnoreCase(username)) {
-            return new ArrayList<>();
-        }
-        
-        // Mock data for demonstration
-        return List.of(
-                Map.of(
-                        "id", 1L,
-                        "name", "spring-boot-api",
-                        "description", "RESTful API built with Spring Boot and PostgreSQL",
-                        "html_url", "https://github.com/" + username + "/spring-boot-api",
-                        "language", "Java",
-                        "stargazers_count", 42,
-                        "forks_count", 15,
-                        "topics", List.of("spring-boot", "rest-api", "java", "postgresql"),
-                        "created_at", "2022-01-15T10:30:00Z",
-                        "updated_at", "2023-11-20T14:22:00Z"
-                ),
-                Map.of(
-                        "id", 2L,
-                        "name", "react-dashboard",
-                        "description", "Admin dashboard built with React and Material UI",
-                        "html_url", "https://github.com/" + username + "/react-dashboard",
-                        "language", "JavaScript",
-                        "stargazers_count", 28,
-                        "forks_count", 8,
-                        "topics", List.of("react", "javascript", "material-ui", "dashboard"),
-                        "created_at", "2022-03-10T09:15:00Z",
-                        "updated_at", "2023-10-05T11:45:00Z"
-                ),
-                Map.of(
-                        "id", 3L,
-                        "name", "python-data-analysis",
-                        "description", "Data analysis scripts using Python, Pandas, and Matplotlib",
-                        "html_url", "https://github.com/" + username + "/python-data-analysis",
-                        "language", "Python",
-                        "stargazers_count", 15,
-                        "forks_count", 5,
-                        "topics", List.of("python", "pandas", "data-analysis", "matplotlib"),
-                        "created_at", "2022-05-20T14:50:00Z",
-                        "updated_at", "2023-09-12T08:30:00Z"
-                )
-        );
     }
     
     /**
