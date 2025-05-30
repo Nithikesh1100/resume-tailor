@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Download, Copy, Save, RefreshCw, AlertTriangle } from "lucide-react"
+import { Download, Copy, Save, RefreshCw, AlertTriangle, Github } from "lucide-react"
 import { compileToPdf } from "../services/api"
 
 // Sample LaTeX template
@@ -115,40 +115,116 @@ export default function ResumeEditor() {
     }
   }, [])
 
-  // Simulate LaTeX compilation to HTML preview
+  // Function to integrate GitHub projects into the resume
+  const integrateGitHubProjects = () => {
+    try {
+      const githubProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]")
+      if (githubProjects.length === 0) {
+        alert("No GitHub projects found. Please add projects from the GitHub Integration page first.")
+        return
+      }
+
+      // Create LaTeX content for GitHub projects
+      let projectsLatex = "\\section{GitHub Projects}\n"
+
+      githubProjects.forEach((project) => {
+        projectsLatex += `\\textbf{${project.name}} \\hfill \\href{${project.url}}{${project.url.replace("https://github.com/", "github.com/")}}\n`
+        projectsLatex += "\\begin{itemize}[leftmargin=*, noitemsep]\n"
+
+        // Add description if available
+        if (project.description) {
+          projectsLatex += `\\item ${project.description}\n`
+        }
+
+        // Add technologies if available
+        if (project.technologies && project.technologies.length > 0) {
+          projectsLatex += `\\item \\textbf{Technologies:} ${project.technologies.join(", ")}\n`
+        }
+
+        projectsLatex += "\\end{itemize}\n\n"
+      })
+
+      // Check if Projects section already exists
+      if (latexCode.includes("\\section{Projects}") || latexCode.includes("\\section{GitHub Projects}")) {
+        // Replace existing Projects section
+        const updatedLatex = latexCode.replace(
+          /\\section\{(?:GitHub )?Projects\}[\s\S]*?(\\section\{|\\end\{document\})/,
+          `${projectsLatex}$1`,
+        )
+        setLatexCode(updatedLatex)
+      } else {
+        // Add new Projects section before end of document
+        const updatedLatex = latexCode.replace("\\end{document}", `${projectsLatex}\n\\end{document}`)
+        setLatexCode(updatedLatex)
+      }
+
+      alert(`Successfully integrated ${githubProjects.length} GitHub projects into your resume!`)
+    } catch (err) {
+      console.error("Error integrating GitHub projects:", err)
+      alert("Failed to integrate GitHub projects. Please try again.")
+    }
+  }
+
+  // Improved LaTeX to HTML conversion
   useEffect(() => {
-    // This is a simplified simulation of LaTeX to HTML conversion
-    // In a real app, you would use a proper LaTeX to HTML converter or API
+    // This is a more comprehensive simulation of LaTeX to HTML conversion
     const simulateCompilation = () => {
       setIsCompiling(true)
 
-      // Simple conversion for preview purposes
+      // Enhanced conversion for preview purposes
       const html = latexCode
-        // Replace sections
-        .replace(/\\section{(.*?)}/g, '<h2 class="text-xl font-bold mt-4 mb-2">$1</h2>')
-        // Replace itemize environments
-        .replace(/\\begin{itemize}(.*?)\\end{itemize}/gs, (match) => {
-          return (
-            '<ul class="list-disc pl-5 space-y-1">' +
-            match
-              .replace(/\\begin{itemize}.*?\]/gs, "")
-              .replace(/\\end{itemize}/g, "")
-              .replace(/\\item\s(.*?)(?=\\item|$)/gs, "<li>$1</li>") +
-            "</ul>"
-          )
-        })
-        // Replace basic formatting
-        .replace(/\\textbf{(.*?)}/g, "<strong>$1</strong>")
-        .replace(/\\textit{(.*?)}/g, "<em>$1</em>")
-        .replace(/\\LARGE\\s*\\textbf{(.*?)}/g, '<h1 class="text-2xl font-bold">$1</h1>')
-        .replace(/\\href{(.*?)}{(.*?)}/g, '<a href="$1" class="text-blue-600 hover:underline">$2</a>')
-        // Replace newlines with breaks
-        .replace(/\\\\/g, "<br>")
-        // Replace document structure
+        // Handle document structure
         .replace(
           /\\begin{document}|\\end{document}|\\documentclass.*?}|\\usepackage.*?}|\\geometry.*?}|\\titleformat.*?}|\\titlespacing.*?}/gs,
           "",
         )
+
+        // Handle center environment
+        .replace(/\\begin{center}([\s\S]*?)\\end{center}/g, '<div class="text-center">$1</div>')
+
+        // Handle sections
+        .replace(/\\section{(.*?)}/g, '<h2 class="text-xl font-bold mt-6 mb-3 pb-1 border-b">$1</h2>')
+
+        // Handle itemize environments with better regex
+        .replace(/\\begin{itemize}[\s\S]*?\\end{itemize}/gs, (match) => {
+          // Extract items
+          const items = match.match(/\\item\s+([\s\S]*?)(?=\\item|\\end{itemize})/g) || []
+
+          // Format items
+          const formattedItems = items
+            .map((item) => {
+              // Remove \item and trim
+              const content = item.replace(/\\item\s+/, "").trim()
+              return `<li class="mb-1">${content}</li>`
+            })
+            .join("")
+
+          return `<ul class="list-disc pl-5 space-y-1">${formattedItems}</ul>`
+        })
+
+        // Handle text formatting
+        .replace(/\\textbf{(.*?)}/g, "<strong>$1</strong>")
+        .replace(/\\textit{(.*?)}/g, "<em>$1</em>")
+        .replace(/\\LARGE\s*\\textbf{(.*?)}/g, '<h1 class="text-2xl font-bold">$1</h1>')
+        .replace(/\\LARGE\s*{(.*?)}/g, '<span class="text-2xl">$1</span>')
+
+        // Handle hyperlinks
+        .replace(/\\href{(.*?)}{(.*?)}/g, '<a href="$1" class="text-blue-600 hover:underline">$2</a>')
+
+        // Handle horizontal alignment with hfill
+        .replace(/(.*?)\\hfill(.*?)\\\\/, '<div class="flex justify-between"><div>$1</div><div>$2</div></div>')
+
+        // Handle newlines
+        .replace(/\\\\/g, "<br>")
+
+        // Handle percentage signs (escaped in LaTeX)
+        .replace(/(\d+)\\%/g, "$1%")
+
+        // Clean up any remaining LaTeX commands
+        .replace(/\\[a-zA-Z]+(\[.*?\])?(\{.*?\})?/g, "")
+
+        // Fix spacing issues
+        .replace(/\n\s*\n/g, '<div class="my-4"></div>')
 
       setTimeout(() => {
         setPreviewHtml(html)
@@ -229,6 +305,16 @@ export default function ResumeEditor() {
             {template.name}
           </button>
         ))}
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={integrateGitHubProjects}
+          className="flex items-center space-x-1 px-3 py-1 rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+        >
+          <Github className="h-4 w-4" />
+          <span>Integrate GitHub Projects</span>
+        </button>
       </div>
 
       {/* Error message */}

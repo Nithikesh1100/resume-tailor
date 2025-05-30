@@ -1,7 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Github, Search, Star, GitFork, Code, ExternalLink, Plus, Check, AlertTriangle, Loader2 } from "lucide-react"
+import {
+  Github,
+  Search,
+  Star,
+  GitFork,
+  Code,
+  ExternalLink,
+  Plus,
+  Check,
+  AlertTriangle,
+  Loader2,
+  Award,
+} from "lucide-react"
 import { fetchGitHubProjects } from "../services/api"
 
 export default function GitHubProjects() {
@@ -15,6 +27,8 @@ export default function GitHubProjects() {
   const [usingMockData, setUsingMockData] = useState(false)
   const [addingToResume, setAddingToResume] = useState(false)
   const [showApiKeyInput, setShowApiKeyInput] = useState(false)
+  const [addingProjectId, setAddingProjectId] = useState(null)
+  const [recommendedProjects, setRecommendedProjects] = useState([])
 
   // Load GitHub token from localStorage on component mount
   useEffect(() => {
@@ -29,6 +43,7 @@ export default function GitHubProjects() {
     setError("")
     setUsingMockData(false)
     setProjects([])
+    setRecommendedProjects([])
 
     try {
       if (username.trim() === "") {
@@ -49,6 +64,22 @@ export default function GitHubProjects() {
         setProjects([])
       } else {
         setProjects(response.repositories || [])
+
+        // Identify recommended projects based on relevance score or other criteria
+        if (jobDescription) {
+          // If job description is provided, recommend projects with high relevance score
+          const recommended = response.repositories
+            .filter((project) => project.relevanceScore > 60) // Threshold for recommendation
+            .map((project) => project.id)
+          setRecommendedProjects(recommended)
+        } else {
+          // If no job description, recommend projects with most stars or recent activity
+          const topProjects = [...response.repositories]
+            .sort((a, b) => b.stars - a.stars)
+            .slice(0, 3)
+            .map((project) => project.id)
+          setRecommendedProjects(topProjects)
+        }
       }
     } catch (err) {
       console.error("Error fetching GitHub projects:", err)
@@ -74,6 +105,52 @@ export default function GitHubProjects() {
     return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
   }
 
+  // Add a single project to resume
+  const addProjectToResume = async (projectId) => {
+    setAddingProjectId(projectId)
+
+    try {
+      // Get project details
+      const project = projects.find((p) => p.id === projectId)
+      if (!project) return
+
+      // Format project for resume
+      const formattedProject = {
+        name: project.name,
+        description: project.description,
+        url: project.htmlUrl,
+        technologies: project.topics || [],
+        relevanceScore: project.relevanceScore || 0,
+      }
+
+      // Store in localStorage to be used in resume editor
+      const existingProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]")
+
+      // Check if project already exists
+      const projectExists = existingProjects.some((p) => p.url === formattedProject.url)
+
+      if (!projectExists) {
+        const updatedProjects = [...existingProjects, formattedProject]
+        localStorage.setItem("githubProjects", JSON.stringify(updatedProjects))
+
+        // Show success message
+        alert(`Project "${project.name}" added to your resume!`)
+      } else {
+        alert(`Project "${project.name}" is already in your resume.`)
+      }
+
+      // Add to selected projects for UI state
+      if (!selectedProjects.includes(projectId)) {
+        setSelectedProjects([...selectedProjects, projectId])
+      }
+    } catch (err) {
+      console.error("Error adding project to resume:", err)
+      alert("Failed to add project to resume. Please try again.")
+    } finally {
+      setAddingProjectId(null)
+    }
+  }
+
   // Add selected projects to resume
   const addProjectsToResume = async () => {
     if (selectedProjects.length === 0) return
@@ -95,14 +172,16 @@ export default function GitHubProjects() {
 
       // Store in localStorage to be used in resume editor
       const existingProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]")
-      const combinedProjects = [...existingProjects, ...formattedProjects]
+
+      // Filter out duplicates
+      const newProjects = formattedProjects.filter(
+        (newProject) => !existingProjects.some((existingProject) => existingProject.url === newProject.url),
+      )
+
+      const combinedProjects = [...existingProjects, ...newProjects]
       localStorage.setItem("githubProjects", JSON.stringify(combinedProjects))
 
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      alert(`${selectedProjects.length} projects added to your resume! You can now include them in your resume editor.`)
-      setSelectedProjects([])
+      alert(`${newProjects.length} projects added to your resume! You can now include them in your resume editor.`)
     } catch (err) {
       console.error("Error saving projects:", err)
       alert("Failed to save projects. Please try again.")
@@ -249,18 +328,29 @@ export default function GitHubProjects() {
                       <span className="px-2 py-0.5 text-xs rounded-full bg-secondary text-secondary-foreground">
                         {project.language || "Unknown"}
                       </span>
+
+                      {/* Recommended badge */}
+                      {recommendedProjects.includes(project.id) && (
+                        <span className="flex items-center px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                          <Award className="h-3 w-3 mr-1" />
+                          Recommended
+                        </span>
+                      )}
                     </div>
                     <p className="text-muted-foreground">{project.description || "No description available"}</p>
                   </div>
                   <button
-                    onClick={() => toggleProjectSelection(project.id)}
+                    onClick={() => addProjectToResume(project.id)}
+                    disabled={addingProjectId === project.id}
                     className={`p-2 rounded-full ${
                       selectedProjects.includes(project.id)
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                     }`}
                   >
-                    {selectedProjects.includes(project.id) ? (
+                    {addingProjectId === project.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : selectedProjects.includes(project.id) ? (
                       <Check className="h-5 w-5" />
                     ) : (
                       <Plus className="h-5 w-5" />

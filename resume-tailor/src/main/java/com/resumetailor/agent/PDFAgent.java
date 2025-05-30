@@ -4,16 +4,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayOutputStream;
+// import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
+// import java.nio.file.Files;
+// import java.nio.file.Path;
+// import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
+// import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Agent responsible for compiling LaTeX into downloadable PDF format.
@@ -33,13 +38,8 @@ public class PDFAgent implements Agent<String, byte[]> {
         
         try {
             // In a real application, you would use a LaTeX compiler like pdflatex
-            // For demonstration purposes, we'll create a simple PDF using PDFBox
-            
-            // Option 1: Use ProcessBuilder to call pdflatex (commented out)
-            // return compilePdfWithLatex(latexContent);
-            
-            // Option 2: Create a simple PDF using PDFBox (for demonstration)
-            return createSimplePdf(latexContent);
+            // For demonstration purposes, we'll create an improved PDF using PDFBox
+            return createImprovedPdf(latexContent);
             
         } catch (Exception e) {
             log.error("{}: Error compiling LaTeX to PDF: {}", getName(), e.getMessage());
@@ -53,85 +53,190 @@ public class PDFAgent implements Agent<String, byte[]> {
     }
     
     /**
-     * Compile LaTeX to PDF using pdflatex (via ProcessBuilder)
-     * This is commented out as it requires pdflatex to be installed on the system
+     * Create an improved PDF using PDFBox with better LaTeX parsing
      */
-    private byte[] compilePdfWithLatex(String latexContent) throws IOException, InterruptedException {
-        // Create temporary directory
-        Path tempDir = Files.createTempDirectory("latex_" + UUID.randomUUID());
-        
-        // Create temporary LaTeX file
-        Path latexFile = tempDir.resolve("resume.tex");
-        Files.writeString(latexFile, latexContent);
-        
-        // Run pdflatex command
-        ProcessBuilder processBuilder = new ProcessBuilder(
-                "pdflatex",
-                "-interaction=nonstopmode",
-                "-output-directory=" + tempDir,
-                latexFile.toString()
-        );
-        
-        Process process = processBuilder.start();
-        int exitCode = process.waitFor();
-        
-        if (exitCode != 0) {
-            throw new RuntimeException("LaTeX compilation failed with exit code: " + exitCode);
-        }
-        
-        // Read compiled PDF
-        Path pdfFile = tempDir.resolve("resume.pdf");
-        byte[] pdfBytes = Files.readAllBytes(pdfFile);
-        
-        // Clean up temporary files
-        Files.deleteIfExists(pdfFile);
-        Files.deleteIfExists(latexFile);
-        Files.deleteIfExists(tempDir);
-        
-        return pdfBytes;
-    }
-    
-    /**
-     * Create a simple PDF using PDFBox (for demonstration purposes)
-     */
-    private byte[] createSimplePdf(String latexContent) throws IOException {
+    private byte[] createImprovedPdf(String latexContent) throws IOException {
         try (PDDocument document = new PDDocument()) {
-            PDPage page = new PDPage();
+            PDPage page = new PDPage(PDRectangle.A4);
             document.addPage(page);
             
+            // Extract sections from LaTeX
+            List<Section> sections = parseLatexSections(latexContent);
+            
+            // Create content stream
             try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                float margin = 50;
+                float yPosition = page.getMediaBox().getHeight() - margin;
+                float width = page.getMediaBox().getWidth() - 2 * margin;
+                
+                // Set fonts
+                PDFont titleFont = PDType1Font.HELVETICA_BOLD;
+                PDFont regularFont = PDType1Font.HELVETICA;
+                PDFont italicFont = PDType1Font.HELVETICA_OBLIQUE;
+                PDFont boldFont = PDType1Font.HELVETICA_BOLD;
+                
+                // Extract name from LaTeX (assuming it's in \LARGE \textbf{...})
+                String name = extractName(latexContent);
+                
+                // Start content
                 contentStream.beginText();
-                contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
-                contentStream.newLineAtOffset(50, 700);
-                contentStream.showText("Resume Preview (LaTeX Compilation Simulation)");
+                contentStream.setFont(titleFont, 18);
+                contentStream.newLineAtOffset(margin, yPosition);
                 
-                contentStream.setFont(PDType1Font.HELVETICA, 10);
-                contentStream.newLineAtOffset(0, -30);
-                
-                // Split LaTeX content into lines and show first 30 lines
-                List<String> lines = Arrays.asList(latexContent.split("\n"));
-                int lineCount = Math.min(lines.size(), 30);
-                
-                for (int i = 0; i < lineCount; i++) {
-                    String line = lines.get(i);
-                    // Truncate long lines
-                    if (line.length() > 80) {
-                        line = line.substring(0, 77) + "...";
-                    }
-                    contentStream.showText(line);
-                    contentStream.newLineAtOffset(0, -12);
-                }
-                
-                if (lines.size() > 30) {
-                    contentStream.showText("... (content truncated for preview)");
-                }
-                
+                // Add name
+                contentStream.showText(name);
+                yPosition -= 20;
                 contentStream.endText();
+                
+                // Add contact info
+                String contactInfo = extractContactInfo(latexContent);
+                contentStream.beginText();
+                contentStream.setFont(regularFont, 10);
+                contentStream.newLineAtOffset(margin, yPosition);
+                contentStream.showText(contactInfo);
+                yPosition -= 30;
+                contentStream.endText();
+                
+                // Add sections
+                for (Section section : sections) {
+                    // Section title
+                    contentStream.beginText();
+                    contentStream.setFont(boldFont, 12);
+                    contentStream.newLineAtOffset(margin, yPosition);
+                    contentStream.showText(section.title);
+                    contentStream.endText();
+                    
+                    // Add line under section title
+                    contentStream.setStrokingColor(0, 0, 0);
+                    contentStream.moveTo(margin, yPosition - 5);
+                    contentStream.lineTo(page.getMediaBox().getWidth() - margin, yPosition - 5);
+                    contentStream.stroke();
+                    
+                    yPosition -= 20;
+                    
+                    // Section content
+                    String[] contentLines = section.content.split("\n");
+                    for (String line : contentLines) {
+                        // Check if we need a new page
+                        if (yPosition < margin + 50) {
+                            contentStream.close();
+                            page = new PDPage(PDRectangle.A4);
+                            document.addPage(page);
+                            contentStream = new PDPageContentStream(document, page);
+                            yPosition = page.getMediaBox().getHeight() - margin;
+                        }
+                        
+                        if (!line.trim().isEmpty()) {
+                            contentStream.beginText();
+                            contentStream.setFont(regularFont, 10);
+                            contentStream.newLineAtOffset(margin, yPosition);
+                            
+                            // Handle bold text
+                            if (line.contains("\\textbf{")) {
+                                String[] parts = line.split("\\\\textbf\\{|\\}");
+                                float xOffset = 0;
+                                for (int i = 0; i < parts.length; i++) {
+                                    if (i % 2 == 0) {
+                                        // Regular text
+                                        contentStream.setFont(regularFont, 10);
+                                        contentStream.showText(parts[i]);
+                                        xOffset += regularFont.getStringWidth(parts[i]) / 1000 * 10;
+                                    } else {
+                                        // Bold text
+                                        contentStream.setFont(boldFont, 10);
+                                        contentStream.showText(parts[i]);
+                                        xOffset += boldFont.getStringWidth(parts[i]) / 1000 * 10;
+                                    }
+                                }
+                            } else {
+                                contentStream.showText(line);
+                            }
+                            
+                            contentStream.endText();
+                            yPosition -= 12;
+                        }
+                    }
+                    
+                    yPosition -= 10; // Extra space between sections
+                }
             }
             
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             document.save(baos);
             return baos.toByteArray();
+        }
+    }
+    
+    /**
+     * Extract name from LaTeX content
+     */
+    private String extractName(String latexContent) {
+        Pattern pattern = Pattern.compile("\\\\LARGE\\s*\\\\textbf\\{(.*?)\\}");
+        Matcher matcher = pattern.matcher(latexContent);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return "Resume";
+    }
+    
+    /**
+     * Extract contact info from LaTeX content
+     */
+    private String extractContactInfo(String latexContent) {
+        Pattern pattern = Pattern.compile("\\\\begin\\{center\\}.*?\\\\LARGE.*?\\\\\\\\(.*?)\\\\end\\{center\\}", Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(latexContent);
+        if (matcher.find()) {
+            String contactInfo = matcher.group(1)
+                    .replaceAll("\\\\\\\\", ", ")
+                    .replaceAll("\\\\href\\{.*?\\}\\{(.*?)\\}", "$1")
+                    .replaceAll("\\|", "•");
+            return contactInfo;
+        }
+        return "";
+    }
+    
+    /**
+     * Parse LaTeX content into sections
+     */
+    private List<Section> parseLatexSections(String latexContent) {
+        // Split by section
+        String[] sectionBlocks = latexContent.split("\\\\section\\{");
+        
+        // Skip the first block (before first section)
+        List<Section> sections = new java.util.ArrayList<>();
+        
+        for (int i = 1; i < sectionBlocks.length; i++) {
+            String block = sectionBlocks[i];
+            int titleEnd = block.indexOf('}');
+            if (titleEnd > 0) {
+                String title = block.substring(0, titleEnd);
+                String content = block.substring(titleEnd + 1).trim();
+                
+                // Clean up content
+                content = content
+                        .replaceAll("\\\\begin\\{itemize\\}.*?\\\\end\\{itemize\\}", "")
+                        .replaceAll("\\\\item", "• ")
+                        .replaceAll("\\\\textit\\{(.*?)\\}", "$1")
+                        .replaceAll("\\\\hfill", " - ")
+                        .replaceAll("\\\\\\\\", "\n");
+                
+                sections.add(new Section(title, content));
+            }
+        }
+        
+        return sections;
+    }
+    
+    /**
+     * Section class to hold title and content
+     */
+    private static class Section {
+        String title;
+        String content;
+        
+        Section(String title, String content) {
+            this.title = title;
+            this.content = content;
         }
     }
 }
