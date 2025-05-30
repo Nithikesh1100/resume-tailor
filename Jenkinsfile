@@ -3,8 +3,6 @@ pipeline {
     
     environment {
         BUILD_VERSION = "${env.BUILD_NUMBER}"
-        NODE_VERSION = '18'
-        MAVEN_VERSION = '3.9.0'
     }
     
     stages {
@@ -16,45 +14,31 @@ pipeline {
         }
         
         stage('Build Backend') {
-            agent {
-                docker {
-                    image 'maven:3.9.0-openjdk-17'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
-                }
-            }
             steps {
                 echo 'Building Spring Boot backend...'
                 dir('resume-tailor') {
-                    sh 'mvn clean compile'
+                    sh 'mvn clean compile -f pom.xml'
                 }
             }
         }
         
         stage('Test Backend') {
-            agent {
-                docker {
-                    image 'maven:3.9.0-openjdk-17'
-                }
-            }
             steps {
                 echo 'Running backend tests...'
                 dir('resume-tailor') {
-                    sh 'mvn test'
+                    sh 'mvn test -f pom.xml'
                 }
             }
             post {
                 always {
-                    publishTestResults testResultsPattern: 'resume-tailor/target/surefire-reports/*.xml'
+                    dir('resume-tailor') {
+                        publishTestResults testResultsPattern: 'target/surefire-reports/*.xml'
+                    }
                 }
             }
         }
         
         stage('Build Frontend') {
-            agent {
-                docker {
-                    image 'node:18-alpine'
-                }
-            }
             steps {
                 echo 'Building Next.js frontend...'
                 dir('resume-tailor-frontend') {
@@ -67,11 +51,6 @@ pipeline {
         }
         
         stage('Test Frontend') {
-            agent {
-                docker {
-                    image 'node:18-alpine'
-                }
-            }
             steps {
                 echo 'Running frontend tests...'
                 dir('resume-tailor-frontend') {
@@ -84,20 +63,17 @@ pipeline {
         }
         
         stage('Package Backend') {
-            agent {
-                docker {
-                    image 'maven:3.9.0-openjdk-17'
-                }
-            }
             steps {
                 echo 'Packaging Spring Boot application...'
                 dir('resume-tailor') {
-                    sh 'mvn clean package -DskipTests'
+                    sh 'mvn clean package -DskipTests -f pom.xml'
                 }
             }
             post {
                 success {
-                    archiveArtifacts artifacts: 'resume-tailor/target/*.jar', fingerprint: true
+                    dir('resume-tailor') {
+                        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                    }
                 }
             }
         }
@@ -110,7 +86,7 @@ pipeline {
                 echo 'Deploying to staging environment...'
                 sh '''
                     echo "Starting backend application..."
-                    # You can add your deployment commands here
+                    # Add your deployment commands here
                 '''
             }
         }
