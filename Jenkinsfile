@@ -17,7 +17,7 @@ pipeline {
         stage('🏗️ Build Backend') {
             agent {
                 docker {
-                    image 'maven:3.9.0-openjdk-17'
+                    image 'maven:3-openjdk-17'
                     args '-v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
@@ -32,7 +32,7 @@ pipeline {
         stage('🧪 Test Backend') {
             agent {
                 docker {
-                    image 'maven:3.9.0-openjdk-17'
+                    image 'maven:3-openjdk-17'
                 }
             }
             steps {
@@ -91,7 +91,7 @@ pipeline {
         stage('📦 Package Backend') {
             agent {
                 docker {
-                    image 'maven:3.9.0-openjdk-17'
+                    image 'maven:3-openjdk-17'
                 }
             }
             steps {
