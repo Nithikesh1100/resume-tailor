@@ -26,7 +26,6 @@ pipeline {
             steps {
                 echo '🔨 Building & Testing Spring Boot backend...'
                 dir('resume-tailor') {
-                    // single Maven run: compiles, tests, and packages
                     sh 'mvn clean package -q'
                 }
             }
@@ -60,8 +59,8 @@ pipeline {
                 echo '🎨 Building Next.js frontend...'
                 dir('resume-tailor-frontend') {
                     sh '''
-                        npm ci --prefer-offline --no-audit --progress=false
-                        npm run ci:build
+                        npm install --legacy-peer-deps --prefer-offline --no-audit --progress=false
+                        npm run build
                     '''
                 }
             }
@@ -78,6 +77,7 @@ pipeline {
                 echo '🔍 Running frontend lint & type-check...'
                 dir('resume-tailor-frontend') {
                     sh '''
+                        npm install --legacy-peer-deps --prefer-offline --no-audit --progress=false
                         npm run lint
                         npm run type-check
                     '''
