@@ -32,10 +32,15 @@ export default function GitHubProjects() {
 
   // Load GitHub token from localStorage on component mount
   useEffect(() => {
-    const storedApiKey = localStorage.getItem("github_api_key") || ""
-    setApiKey(storedApiKey)
-    setShowApiKeyInput(!storedApiKey)
-  }, [])
+  const stored = localStorage.getItem("github_api_key");
+  if (stored) {
+    setApiKey(stored);
+    setShowApiKeyInput(false);
+  } else {
+    setShowApiKeyInput(true);
+  }
+}, []);
+
 
   // Function to fetch GitHub projects
   const fetchProjects = async () => {
@@ -124,7 +129,10 @@ export default function GitHubProjects() {
       }
 
       // Store in localStorage to be used in resume editor
-      const existingProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]")
+let existingProjects= [];
+if (typeof localStorage !== "undefined") {
+  existingProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]");
+}
 
       // Check if project already exists
       const projectExists = existingProjects.some((p) => p.url === formattedProject.url)
@@ -171,15 +179,22 @@ export default function GitHubProjects() {
       }))
 
       // Store in localStorage to be used in resume editor
-      const existingProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]")
+let existingProjects = [];
+
+if (typeof localStorage !== "undefined") {
+  existingProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]");
+}
 
       // Filter out duplicates
       const newProjects = formattedProjects.filter(
         (newProject) => !existingProjects.some((existingProject) => existingProject.url === newProject.url),
       )
 
-      const combinedProjects = [...existingProjects, ...newProjects]
-      localStorage.setItem("githubProjects", JSON.stringify(combinedProjects))
+      if (typeof localStorage !== "undefined") {
+  const combinedProjects = [...existingProjects, ...newProjects];
+  localStorage.setItem("githubProjects", JSON.stringify(combinedProjects));
+}
+
 
       alert(`${newProjects.length} projects added to your resume! You can now include them in your resume editor.`)
     } catch (err) {

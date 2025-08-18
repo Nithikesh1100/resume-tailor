@@ -23,7 +23,9 @@ export default function Settings() {
 
   // Load saved API keys and settings on component mount
   useEffect(() => {
-    setMounted(true)
+  setMounted(true)
+
+  if (typeof window !== "undefined" && window.localStorage) {
     const openaiKey = localStorage.getItem("openai_api_key") || ""
     const groqKey = localStorage.getItem("groq_api_key") || ""
     const githubKey = localStorage.getItem("github_api_key") || ""
@@ -38,7 +40,9 @@ export default function Settings() {
     })
 
     setSelectedProvider(provider)
-  }, [])
+  }
+}, [])
+
 
   // Handle input change
   const handleInputChange = (key, value) => {

@@ -1,30 +1,40 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Sparkles, FileText, ArrowRight, Check, X, AlertTriangle } from "lucide-react"
-import { tailorResume, mockData } from "../services/api"
+import { useState, useEffect } from "react";
+import {
+  Sparkles,
+  FileText,
+  ArrowRight,
+  Check,
+  X,
+  AlertTriangle,
+} from "lucide-react";
+import { tailorResume, mockData } from "../services/api";
 
 export default function AITailor() {
-  const [resumeText, setResumeText] = useState("")
-  const [jobDescription, setJobDescription] = useState("")
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [results, setResults] = useState(null)
-  const [activeTab, setActiveTab] = useState("suggestions")
-  const [error, setError] = useState(null)
-  const [apiKey, setApiKey] = useState("")
-  const [provider, setProvider] = useState("openai")
-  const [usingMockData, setUsingMockData] = useState(false)
-  const [rawResponse, setRawResponse] = useState(null)
+  const [resumeText, setResumeText] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [results, setResults] = useState(null);
+  const [activeTab, setActiveTab] = useState("suggestions");
+  const [error, setError] = useState(null);
+  const [apiKey, setApiKey] = useState("");
+  const [provider, setProvider] = useState("openai");
+  const [usingMockData, setUsingMockData] = useState(false);
+  const [rawResponse, setRawResponse] = useState(null);
 
   // Add state for action feedback
-  const [applyFeedback, setApplyFeedback] = useState(false)
-  const [generateFeedback, setGenerateFeedback] = useState(false)
+  const [applyFeedback, setApplyFeedback] = useState(false);
+  const [generateFeedback, setGenerateFeedback] = useState(false);
 
   // Load provider from localStorage on component mount
   useEffect(() => {
-    const savedProvider = localStorage.getItem("selected_ai_provider") || "openai"
-    setProvider(savedProvider)
-  }, [])
+    const savedProvider =
+      typeof window !== "undefined"
+        ? localStorage.getItem("selected_ai_provider") || "openai"
+        : "openai";
+    setProvider(savedProvider);
+  }, []);
 
   // Sample resume for demo purposes
   const sampleResume = `John Doe
@@ -52,7 +62,7 @@ Software Engineer | Digital Solutions LLC, Boston, MA | Mar 2018 - Dec 2020
 - Developed responsive web applications using React and Redux
 - Created RESTful APIs with Node.js and Express
 - Collaborated with UX/UI designers to implement user-friendly interfaces
-- Participated in Agile development cycles and sprint planning`
+- Participated in Agile development cycles and sprint planning`;
 
   // Sample job description for demo purposes
   const sampleJobDescription = `Senior Frontend Developer
@@ -82,108 +92,135 @@ Nice to have:
 - Knowledge of GraphQL
 - Experience with UI component libraries
 - Understanding of accessibility standards
-- Experience with Agile development methodologies`
+- Experience with Agile development methodologies`;
 
   // Function to check if response is empty
   const isEmptyResponse = (response) => {
-    if (!response) return true
+    if (!response) return true;
 
     // Check if all arrays are empty and matchScore is 0
-    const hasEmptySuggestions = !response.suggestions || response.suggestions.length === 0
-    const hasEmptyKeywordsMatched = !response.keywordsMatched || response.keywordsMatched.length === 0
-    const hasEmptyKeywordsMissing = !response.keywordsMissing || response.keywordsMissing.length === 0
-    const hasZeroMatchScore = response.matchScore === 0
+    const hasEmptySuggestions =
+      !response.suggestions || response.suggestions.length === 0;
+    const hasEmptyKeywordsMatched =
+      !response.keywordsMatched || response.keywordsMatched.length === 0;
+    const hasEmptyKeywordsMissing =
+      !response.keywordsMissing || response.keywordsMissing.length === 0;
+    const hasZeroMatchScore = response.matchScore === 0;
 
-    return hasEmptySuggestions && hasEmptyKeywordsMatched && hasEmptyKeywordsMissing && hasZeroMatchScore
-  }
+    return (
+      hasEmptySuggestions &&
+      hasEmptyKeywordsMatched &&
+      hasEmptyKeywordsMissing &&
+      hasZeroMatchScore
+    );
+  };
 
   // Function to analyze resume against job description
   const analyzeResume = async () => {
-    setIsAnalyzing(true)
-    setError(null)
-    setUsingMockData(false)
-    setRawResponse(null)
+    setIsAnalyzing(true);
+    setError(null);
+    setUsingMockData(false);
+    setRawResponse(null);
 
     try {
       // First, check if API key is available from localStorage based on selected provider
-      const providerKey = provider === "openai" ? "openai_api_key" : "groq_api_key"
-      const storedApiKey = localStorage.getItem(providerKey) || apiKey
+      const providerKey =
+        provider === "openai" ? "openai_api_key" : "groq_api_key";
+
+      const storedApiKey =
+        typeof window !== "undefined"
+          ? localStorage.getItem(providerKey) || apiKey
+          : apiKey;
 
       if (!storedApiKey) {
-        throw new Error(`${provider.toUpperCase()} API key is required. Please add it in the Settings page.`)
+        throw new Error(
+          `${provider.toUpperCase()} API key is required. Please add it in the Settings page.`
+        );
       }
 
-      console.log(`Sending request to backend with provider: ${provider}`)
-      console.log(`Resume length: ${resumeText.length} characters`)
-      console.log(`Job description length: ${jobDescription.length} characters`)
+      console.log(`Sending request to backend with provider: ${provider}`);
+      console.log(`Resume length: ${resumeText.length} characters`);
+      console.log(
+        `Job description length: ${jobDescription.length} characters`
+      );
 
       // Call the backend API
-      const response = await tailorResume(resumeText, jobDescription, storedApiKey, provider)
+      const response = await tailorResume(
+        resumeText,
+        jobDescription,
+        storedApiKey,
+        provider
+      );
 
       // Store raw response for debugging
-      setRawResponse(response)
+      setRawResponse(response);
 
       // Add detailed logging
-      console.log("AI Tailor Raw Response:", JSON.stringify(response, null, 2))
+      console.log("AI Tailor Raw Response:", JSON.stringify(response, null, 2));
 
       // Check if response is empty (all arrays empty and matchScore is 0)
       if (isEmptyResponse(response)) {
-        console.warn("Received empty response from backend. Falling back to mock data.")
-        setResults(mockData.tailorResponse)
-        setUsingMockData(true)
+        console.warn(
+          "Received empty response from backend. Falling back to mock data."
+        );
+        setResults(mockData.tailorResponse);
+        setUsingMockData(true);
         setError(
-          "Received empty response from backend. Using sample data instead. This may indicate an issue with the AI provider's response formatting.",
-        )
+          "Received empty response from backend. Using sample data instead. This may indicate an issue with the AI provider's response formatting."
+        );
       } else {
-        console.log("Using real data from backend")
-        setResults(response)
+        console.log("Using real data from backend");
+        setResults(response);
       }
     } catch (err) {
-      console.error("Error analyzing resume:", err)
-      setError(err.message || "Failed to analyze resume. Please try again.")
+      console.error("Error analyzing resume:", err);
+      setError(err.message || "Failed to analyze resume. Please try again.");
 
       // Check if we're using mock data due to network error
-      if (err.message.includes("Failed to fetch") || err.message.includes("Network Error")) {
-        console.log("Using mock data due to network error")
-        setResults(mockData.tailorResponse)
-        setUsingMockData(true)
-        setError("Using sample data (backend not available)")
+      if (
+        err.message.includes("Failed to fetch") ||
+        err.message.includes("Network Error")
+      ) {
+        console.log("Using mock data due to network error");
+        setResults(mockData.tailorResponse);
+        setUsingMockData(true);
+        setError("Using sample data (backend not available)");
       } else {
         // This is a real error from the backend, but we'll still show mock data
-        console.log("Using mock data due to backend error:", err.message)
-        setResults(mockData.tailorResponse)
-        setUsingMockData(true)
-        setError(`Backend error: ${err.message}. Using sample data instead.`)
+        console.log("Using mock data due to backend error:", err.message);
+        setResults(mockData.tailorResponse);
+        setUsingMockData(true);
+        setError(`Backend error: ${err.message}. Using sample data instead.`);
       }
     } finally {
-      setIsAnalyzing(false)
+      setIsAnalyzing(false);
     }
-  }
+  };
 
   // Load sample data
   const loadSampleData = () => {
-    setResumeText(sampleResume)
-    setJobDescription(sampleJobDescription)
-  }
+    setResumeText(sampleResume);
+    setJobDescription(sampleJobDescription);
+  };
 
   // Add functions for action feedback
   const handleApplySuggestions = () => {
-    setApplyFeedback(true)
+    setApplyFeedback(true);
     // Simulate applying suggestions
     setTimeout(() => {
-      setApplyFeedback(false)
-      alert("Suggestions applied to resume! (Demo functionality)")
-    }, 1500)
-  }
+      setApplyFeedback(false);
+      alert("Suggestions applied to resume! (Demo functionality)");
+    }, 1500);
+  };
 
   const handleGenerateOptimized = () => {
-    setGenerateFeedback(true)
+    setGenerateFeedback(true);
     // Simulate generating optimized resume
     setTimeout(() => {
-      setGenerateFeedback(false)
-      alert("Optimized resume generated! (Demo functionality)")
-    }, 1500)
-  }
+      setGenerateFeedback(false);
+      alert("Optimized resume generated! (Demo functionality)");
+    }, 1500);
+  };
 
   return (
     <div className="space-y-8">
@@ -194,7 +231,10 @@ Nice to have:
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-semibold">Your Resume</h2>
-                <button onClick={loadSampleData} className="text-sm text-primary hover:underline">
+                <button
+                  onClick={loadSampleData}
+                  className="text-sm text-primary hover:underline"
+                >
                   Load Sample Data
                 </button>
               </div>
@@ -232,14 +272,19 @@ Nice to have:
               <option value="openai">OpenAI</option>
               <option value="groq">Groq</option>
             </select>
-            <p className="text-xs text-muted-foreground">Select which AI provider to use for analyzing your resume.</p>
+            <p className="text-xs text-muted-foreground">
+              Select which AI provider to use for analyzing your resume.
+            </p>
           </div>
 
           {/* API Key input (shown only if not available in settings) */}
-          {!localStorage.getItem(provider === "openai" ? "openai_api_key" : "groq_api_key") && (
+          {!localStorage.getItem(
+            provider === "openai" ? "openai_api_key" : "groq_api_key"
+          ) && (
             <div className="space-y-2">
               <label htmlFor="api-key" className="text-sm font-medium">
-                {provider.toUpperCase()} API Key <span className="text-red-500">*</span>
+                {provider.toUpperCase()} API Key{" "}
+                <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-col">
                 <input
@@ -251,8 +296,8 @@ Nice to have:
                   className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Your API key is used only for this request and not stored on our server. You can also set this in the
-                  Settings page.
+                  Your API key is used only for this request and not stored on
+                  our server. You can also set this in the Settings page.
                 </p>
               </div>
             </div>
@@ -284,7 +329,10 @@ Nice to have:
           {/* Results Header */}
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Analysis Results</h2>
-            <button onClick={() => setResults(null)} className="text-sm text-primary hover:underline">
+            <button
+              onClick={() => setResults(null)}
+              className="text-sm text-primary hover:underline"
+            >
               Start New Analysis
             </button>
           </div>
@@ -296,7 +344,9 @@ Nice to have:
               <div>
                 <p className="text-sm text-yellow-700">{error}</p>
                 {usingMockData && (
-                  <p className="text-xs text-yellow-600 mt-1">Results shown are sample data for demonstration.</p>
+                  <p className="text-xs text-yellow-600 mt-1">
+                    Results shown are sample data for demonstration.
+                  </p>
                 )}
               </div>
             </div>
@@ -306,7 +356,9 @@ Nice to have:
           {rawResponse && (
             <div className="p-4 rounded-md bg-gray-50 border border-gray-200">
               <details>
-                <summary className="cursor-pointer font-medium">Debug: Raw Response</summary>
+                <summary className="cursor-pointer font-medium">
+                  Debug: Raw Response
+                </summary>
                 <pre className="mt-2 text-xs overflow-auto max-h-40 p-2 bg-gray-100 rounded">
                   {JSON.stringify(rawResponse, null, 2)}
                 </pre>
@@ -349,13 +401,15 @@ Nice to have:
                 <div>
                   <h3 className="text-xl font-semibold">Resume Match Score</h3>
                   <p className="text-muted-foreground">
-                    Your resume matches {results.matchScore}% of the job requirements
+                    Your resume matches {results.matchScore}% of the job
+                    requirements
                   </p>
                 </div>
               </div>
               <div className="mt-4 md:mt-0 text-center md:text-right">
                 <div className="text-sm font-medium">
-                  Keyword Match: {results.keywordsMatched?.length || 0} keywords matched
+                  Keyword Match: {results.keywordsMatched?.length || 0} keywords
+                  matched
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {results.keywordsMissing?.length || 0} missing keywords
@@ -397,13 +451,18 @@ Nice to have:
               <div className="space-y-4">
                 {results.suggestions && results.suggestions.length > 0 ? (
                   results.suggestions.map((suggestion, index) => (
-                    <div key={index} className="border rounded-lg overflow-hidden">
+                    <div
+                      key={index}
+                      className="border rounded-lg overflow-hidden"
+                    >
                       <div className="bg-muted p-4">
                         <div className="flex items-start space-x-2">
                           <X className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                           <div>
                             <div className="font-medium">Original Text:</div>
-                            <p className="text-muted-foreground">{suggestion.originalText}</p>
+                            <p className="text-muted-foreground">
+                              {suggestion.originalText}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -414,7 +473,8 @@ Nice to have:
                             <div className="font-medium">Improved Version:</div>
                             <p>{suggestion.suggestedText}</p>
                             <p className="mt-2 text-sm text-muted-foreground">
-                              <span className="font-medium">Why:</span> {suggestion.reason}
+                              <span className="font-medium">Why:</span>{" "}
+                              {suggestion.reason}
                             </p>
                           </div>
                         </div>
@@ -423,7 +483,9 @@ Nice to have:
                   ))
                 ) : (
                   <div className="text-center p-6 bg-muted/20 rounded-lg">
-                    <p className="text-muted-foreground">No suggestions available.</p>
+                    <p className="text-muted-foreground">
+                      No suggestions available.
+                    </p>
                   </div>
                 )}
               </div>
@@ -438,15 +500,21 @@ Nice to have:
                   <h3 className="text-lg font-semibold">Skills to Highlight</h3>
                   <div className="bg-card border rounded-lg p-4">
                     <ul className="space-y-2">
-                      {results.keywordsMatched && results.keywordsMatched.length > 0 ? (
+                      {results.keywordsMatched &&
+                      results.keywordsMatched.length > 0 ? (
                         results.keywordsMatched.map((skill, index) => (
-                          <li key={index} className="flex items-center space-x-2">
+                          <li
+                            key={index}
+                            className="flex items-center space-x-2"
+                          >
                             <Check className="h-4 w-4 text-green-500" />
                             <span>{skill}</span>
                           </li>
                         ))
                       ) : (
-                        <li className="text-muted-foreground">No matched skills found</li>
+                        <li className="text-muted-foreground">
+                          No matched skills found
+                        </li>
                       )}
                     </ul>
                   </div>
@@ -457,15 +525,21 @@ Nice to have:
                   <h3 className="text-lg font-semibold">Skills to Add</h3>
                   <div className="bg-card border rounded-lg p-4">
                     <ul className="space-y-2">
-                      {results.keywordsMissing && results.keywordsMissing.length > 0 ? (
+                      {results.keywordsMissing &&
+                      results.keywordsMissing.length > 0 ? (
                         results.keywordsMissing.map((skill, index) => (
-                          <li key={index} className="flex items-center space-x-2">
+                          <li
+                            key={index}
+                            className="flex items-center space-x-2"
+                          >
                             <ArrowRight className="h-4 w-4 text-primary" />
                             <span>{skill}</span>
                           </li>
                         ))
                       ) : (
-                        <li className="text-muted-foreground">No missing skills detected</li>
+                        <li className="text-muted-foreground">
+                          No missing skills detected
+                        </li>
                       )}
                     </ul>
                   </div>
@@ -476,14 +550,20 @@ Nice to have:
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Missing Keywords</h3>
                 <div className="flex flex-wrap gap-2">
-                  {results.keywordsMissing && results.keywordsMissing.length > 0 ? (
+                  {results.keywordsMissing &&
+                  results.keywordsMissing.length > 0 ? (
                     results.keywordsMissing.map((keyword, index) => (
-                      <span key={index} className="px-3 py-1 bg-muted rounded-full text-sm font-medium">
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-muted rounded-full text-sm font-medium"
+                      >
                         {keyword}
                       </span>
                     ))
                   ) : (
-                    <span className="text-muted-foreground">No missing keywords detected</span>
+                    <span className="text-muted-foreground">
+                      No missing keywords detected
+                    </span>
                   )}
                 </div>
               </div>
@@ -495,11 +575,15 @@ Nice to have:
             <button
               onClick={handleApplySuggestions}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                applyFeedback ? "bg-green-500 text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                applyFeedback
+                  ? "bg-green-500 text-white"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
               }`}
             >
               <FileText className="h-5 w-5" />
-              <span>{applyFeedback ? "Applying..." : "Apply Suggestions to Resume"}</span>
+              <span>
+                {applyFeedback ? "Applying..." : "Apply Suggestions to Resume"}
+              </span>
             </button>
             <button
               onClick={handleGenerateOptimized}
@@ -510,11 +594,15 @@ Nice to have:
               }`}
             >
               <Sparkles className="h-5 w-5" />
-              <span>{generateFeedback ? "Generating..." : "Generate Optimized Resume"}</span>
+              <span>
+                {generateFeedback
+                  ? "Generating..."
+                  : "Generate Optimized Resume"}
+              </span>
             </button>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }

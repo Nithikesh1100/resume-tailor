@@ -1,8 +1,15 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Download, Copy, Save, RefreshCw, AlertTriangle, Github } from "lucide-react"
-import { compileToPdf } from "../services/api"
+import { useState, useEffect } from "react";
+import {
+  Download,
+  Copy,
+  Save,
+  RefreshCw,
+  AlertTriangle,
+  Github,
+} from "lucide-react";
+import { compileToPdf } from "../services/api";
 
 // Sample LaTeX template
 const sampleLatexTemplate = `\\documentclass[11pt,a4paper]{article}
@@ -89,130 +96,178 @@ Experienced software engineer with 5+ years of expertise in full-stack developme
    \\item MongoDB Certified Developer
 \\end{itemize}
 
-\\end{document}`
+\\end{document}`;
 
 export default function ResumeEditor() {
-  const [latexCode, setLatexCode] = useState(sampleLatexTemplate)
-  const [previewHtml, setPreviewHtml] = useState("")
-  const [isCompiling, setIsCompiling] = useState(false)
-  const [error, setError] = useState(null)
+  const [latexCode, setLatexCode] = useState(sampleLatexTemplate);
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [isCompiling, setIsCompiling] = useState(false);
+  const [error, setError] = useState(null);
   const [savedTemplates, setSavedTemplates] = useState([
     { name: "Software Engineer", content: sampleLatexTemplate },
     { name: "Data Scientist", content: "% Data Scientist LaTeX Template" },
     { name: "Product Manager", content: "% Product Manager LaTeX Template" },
-  ])
+  ]);
 
   // Check for GitHub projects from localStorage
   useEffect(() => {
     try {
-      const githubProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]")
+      let githubProjects = [];
+
+      if (typeof localStorage !== "undefined") {
+        githubProjects = JSON.parse(
+          localStorage.getItem("githubProjects") || "[]"
+        );
+      }
+
       if (githubProjects.length > 0) {
         // Show notification or handle the integration into the resume
-        console.log(`Found ${githubProjects.length} GitHub projects to integrate`)
+        console.log(
+          `Found ${githubProjects.length} GitHub projects to integrate`
+        );
       }
     } catch (err) {
-      console.error("Error loading GitHub projects:", err)
+      console.error("Error loading GitHub projects:", err);
     }
-  }, [])
+  }, []);
 
   // Function to integrate GitHub projects into the resume
   const integrateGitHubProjects = () => {
     try {
-      const githubProjects = JSON.parse(localStorage.getItem("githubProjects") || "[]")
+      let githubProjects = [];
+
+      if (typeof localStorage !== "undefined") {
+        githubProjects = JSON.parse(
+          localStorage.getItem("githubProjects") || "[]"
+        );
+      }
+
       if (githubProjects.length === 0) {
-        alert("No GitHub projects found. Please add projects from the GitHub Integration page first.")
-        return
+        if (typeof alert !== "undefined") {
+          alert(
+            "No GitHub projects found. Please add projects from the GitHub Integration page first."
+          );
+        } else {
+          console.warn(
+            "No GitHub projects found. Please add projects from the GitHub Integration page first."
+          );
+        }
+        return;
       }
 
       // Create LaTeX content for GitHub projects
-      let projectsLatex = "\\section{GitHub Projects}\n"
+      let projectsLatex = "\\section{GitHub Projects}\n";
 
       githubProjects.forEach((project) => {
-        projectsLatex += `\\textbf{${project.name}} \\hfill \\href{${project.url}}{${project.url.replace("https://github.com/", "github.com/")}}\n`
-        projectsLatex += "\\begin{itemize}[leftmargin=*, noitemsep]\n"
+        projectsLatex += `\\textbf{${project.name}} \\hfill \\href{${project.url}}{${project.url.replace("https://github.com/", "github.com/")}}\n`;
+        projectsLatex += "\\begin{itemize}[leftmargin=*, noitemsep]\n";
 
         // Add description if available
         if (project.description) {
-          projectsLatex += `\\item ${project.description}\n`
+          projectsLatex += `\\item ${project.description}\n`;
         }
 
         // Add technologies if available
         if (project.technologies && project.technologies.length > 0) {
-          projectsLatex += `\\item \\textbf{Technologies:} ${project.technologies.join(", ")}\n`
+          projectsLatex += `\\item \\textbf{Technologies:} ${project.technologies.join(", ")}\n`;
         }
 
-        projectsLatex += "\\end{itemize}\n\n"
-      })
+        projectsLatex += "\\end{itemize}\n\n";
+      });
 
       // Check if Projects section already exists
-      if (latexCode.includes("\\section{Projects}") || latexCode.includes("\\section{GitHub Projects}")) {
+      if (
+        latexCode.includes("\\section{Projects}") ||
+        latexCode.includes("\\section{GitHub Projects}")
+      ) {
         // Replace existing Projects section
         const updatedLatex = latexCode.replace(
           /\\section\{(?:GitHub )?Projects\}[\s\S]*?(\\section\{|\\end\{document\})/,
-          `${projectsLatex}$1`,
-        )
-        setLatexCode(updatedLatex)
+          `${projectsLatex}$1`
+        );
+        setLatexCode(updatedLatex);
       } else {
         // Add new Projects section before end of document
-        const updatedLatex = latexCode.replace("\\end{document}", `${projectsLatex}\n\\end{document}`)
-        setLatexCode(updatedLatex)
+        const updatedLatex = latexCode.replace(
+          "\\end{document}",
+          `${projectsLatex}\n\\end{document}`
+        );
+        setLatexCode(updatedLatex);
       }
 
-      alert(`Successfully integrated ${githubProjects.length} GitHub projects into your resume!`)
+      alert(
+        `Successfully integrated ${githubProjects.length} GitHub projects into your resume!`
+      );
     } catch (err) {
-      console.error("Error integrating GitHub projects:", err)
-      alert("Failed to integrate GitHub projects. Please try again.")
+      console.error("Error integrating GitHub projects:", err);
+      alert("Failed to integrate GitHub projects. Please try again.");
     }
-  }
+  };
 
   // Improved LaTeX to HTML conversion
   useEffect(() => {
     // This is a more comprehensive simulation of LaTeX to HTML conversion
     const simulateCompilation = () => {
-      setIsCompiling(true)
+      setIsCompiling(true);
 
       // Enhanced conversion for preview purposes
       const html = latexCode
         // Handle document structure
         .replace(
           /\\begin{document}|\\end{document}|\\documentclass.*?}|\\usepackage.*?}|\\geometry.*?}|\\titleformat.*?}|\\titlespacing.*?}/gs,
-          "",
+          ""
         )
 
         // Handle center environment
-        .replace(/\\begin{center}([\s\S]*?)\\end{center}/g, '<div class="text-center">$1</div>')
+        .replace(
+          /\\begin{center}([\s\S]*?)\\end{center}/g,
+          '<div class="text-center">$1</div>'
+        )
 
         // Handle sections
-        .replace(/\\section{(.*?)}/g, '<h2 class="text-xl font-bold mt-6 mb-3 pb-1 border-b">$1</h2>')
+        .replace(
+          /\\section{(.*?)}/g,
+          '<h2 class="text-xl font-bold mt-6 mb-3 pb-1 border-b">$1</h2>'
+        )
 
         // Handle itemize environments with better regex
         .replace(/\\begin{itemize}[\s\S]*?\\end{itemize}/gs, (match) => {
           // Extract items
-          const items = match.match(/\\item\s+([\s\S]*?)(?=\\item|\\end{itemize})/g) || []
+          const items =
+            match.match(/\\item\s+([\s\S]*?)(?=\\item|\\end{itemize})/g) || [];
 
           // Format items
           const formattedItems = items
             .map((item) => {
               // Remove \item and trim
-              const content = item.replace(/\\item\s+/, "").trim()
-              return `<li class="mb-1">${content}</li>`
+              const content = item.replace(/\\item\s+/, "").trim();
+              return `<li class="mb-1">${content}</li>`;
             })
-            .join("")
+            .join("");
 
-          return `<ul class="list-disc pl-5 space-y-1">${formattedItems}</ul>`
+          return `<ul class="list-disc pl-5 space-y-1">${formattedItems}</ul>`;
         })
 
         // Handle text formatting
         .replace(/\\textbf{(.*?)}/g, "<strong>$1</strong>")
         .replace(/\\textit{(.*?)}/g, "<em>$1</em>")
-        .replace(/\\LARGE\s*\\textbf{(.*?)}/g, '<h1 class="text-2xl font-bold">$1</h1>')
+        .replace(
+          /\\LARGE\s*\\textbf{(.*?)}/g,
+          '<h1 class="text-2xl font-bold">$1</h1>'
+        )
         .replace(/\\LARGE\s*{(.*?)}/g, '<span class="text-2xl">$1</span>')
 
         // Handle hyperlinks
-        .replace(/\\href{(.*?)}{(.*?)}/g, '<a href="$1" class="text-blue-600 hover:underline">$2</a>')
+        .replace(
+          /\\href{(.*?)}{(.*?)}/g,
+          '<a href="$1" class="text-blue-600 hover:underline">$2</a>'
+        )
 
         // Handle horizontal alignment with hfill
-        .replace(/(.*?)\\hfill(.*?)\\\\/, '<div class="flex justify-between"><div>$1</div><div>$2</div></div>')
+        .replace(
+          /(.*?)\\hfill(.*?)\\\\/,
+          '<div class="flex justify-between"><div>$1</div><div>$2</div></div>'
+        )
 
         // Handle newlines
         .replace(/\\\\/g, "<br>")
@@ -224,72 +279,83 @@ export default function ResumeEditor() {
         .replace(/\\[a-zA-Z]+(\[.*?\])?(\{.*?\})?/g, "")
 
         // Fix spacing issues
-        .replace(/\n\s*\n/g, '<div class="my-4"></div>')
+        .replace(/\n\s*\n/g, '<div class="my-4"></div>');
 
       setTimeout(() => {
-        setPreviewHtml(html)
-        setIsCompiling(false)
-      }, 1000)
-    }
+        setPreviewHtml(html);
+        setIsCompiling(false);
+      }, 1000);
+    };
 
-    simulateCompilation()
-  }, [latexCode])
+    simulateCompilation();
+  }, [latexCode]);
 
   // Handle saving the current template
   const saveTemplate = () => {
-    const templateName = prompt("Enter a name for this template:")
+    const templateName = prompt("Enter a name for this template:");
     if (templateName) {
-      const newTemplate = { name: templateName, content: latexCode }
-      setSavedTemplates([...savedTemplates, newTemplate])
+      const newTemplate = { name: templateName, content: latexCode };
+      setSavedTemplates([...savedTemplates, newTemplate]);
 
       // Save to localStorage
       try {
-        localStorage.setItem(`resume_template_${templateName.toLowerCase().replace(/\s+/g, "_")}`, latexCode)
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem(
+            `resume_template_${templateName.toLowerCase().replace(/\s+/g, "_")}`,
+            latexCode
+          );
+        } else {
+          console.log(
+            "Skipping localStorage save (not available in this environment)"
+          );
+        }
       } catch (err) {
-        console.error("Error saving template:", err)
+        console.error("Error saving template:", err);
       }
     }
-  }
+  };
 
   // Handle loading a template
   const loadTemplate = (content) => {
     if (confirm("This will replace your current work. Continue?")) {
-      setLatexCode(content)
+      setLatexCode(content);
     }
-  }
+  };
 
   // Handle downloading as PDF
   const downloadPdf = async () => {
-    setIsCompiling(true)
-    setError(null)
+    setIsCompiling(true);
+    setError(null);
 
     try {
       // Call backend API to compile LaTeX to PDF
-      const pdfBlob = await compileToPdf(latexCode)
+      const pdfBlob = await compileToPdf(latexCode);
 
       // Create download link
-      const url = URL.createObjectURL(pdfBlob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = "resume.pdf"
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "resume.pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Error compiling PDF:", err)
-      setError("Failed to compile PDF. Please check your LaTeX syntax or try again later.")
+      console.error("Error compiling PDF:", err);
+      setError(
+        "Failed to compile PDF. Please check your LaTeX syntax or try again later."
+      );
 
       // For demo purposes, simulate successful PDF generation
       setTimeout(() => {
         alert(
-          "For demonstration: PDF would be downloaded in a production environment. The backend service for PDF compilation is not available in this demo.",
-        )
-      }, 500)
+          "For demonstration: PDF would be downloaded in a production environment. The backend service for PDF compilation is not available in this demo."
+        );
+      }, 500);
     } finally {
-      setIsCompiling(false)
+      setIsCompiling(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -365,11 +431,16 @@ export default function ResumeEditor() {
             <h2 className="text-lg font-semibold">Preview</h2>
             <div className="flex space-x-2">
               <button
-                onClick={() => setIsCompiling(true) || setTimeout(() => setIsCompiling(false), 1000)}
+                onClick={() =>
+                  setIsCompiling(true) ||
+                  setTimeout(() => setIsCompiling(false), 1000)
+                }
                 className="p-2 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
                 title="Refresh Preview"
               >
-                <RefreshCw className={`h-4 w-4 ${isCompiling ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`h-4 w-4 ${isCompiling ? "animate-spin" : ""}`}
+                />
               </button>
               <button
                 onClick={downloadPdf}
@@ -396,5 +467,5 @@ export default function ResumeEditor() {
         </div>
       </div>
     </div>
-  )
+  );
 }

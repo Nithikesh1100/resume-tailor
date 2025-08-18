@@ -15,26 +15,28 @@ export default function useResume() {
   const [resumeHistory, setResumeHistory] = useState([])
   const [historyIndex, setHistoryIndex] = useState(-1)
 
-  // Load resume data from localStorage on initial render
+  // Load resume data from localStorage on initial render (browser only)
   useEffect(() => {
-    const savedResume = localStorage.getItem("resumeData")
-    if (savedResume) {
-      try {
-        const parsedData = JSON.parse(savedResume)
-        setResumeData(parsedData)
+    if (typeof window !== "undefined") {
+      const savedResume = localStorage.getItem("resumeData")
+      if (savedResume) {
+        try {
+          const parsedData = JSON.parse(savedResume)
+          setResumeData(parsedData)
 
-        // Initialize history with the loaded resume
-        setResumeHistory([parsedData])
-        setHistoryIndex(0)
-      } catch (error) {
-        console.error("Error parsing saved resume data:", error)
+          // Initialize history with the loaded resume
+          setResumeHistory([parsedData])
+          setHistoryIndex(0)
+        } catch (error) {
+          console.error("Error parsing saved resume data:", error)
+        }
       }
     }
   }, [])
 
-  // Save resume data to localStorage whenever it changes
+  // Save resume data to localStorage whenever it changes (browser only)
   useEffect(() => {
-    if (resumeData.content) {
+    if (typeof window !== "undefined" && resumeData.content) {
       localStorage.setItem("resumeData", JSON.stringify(resumeData))
     }
   }, [resumeData])
@@ -91,7 +93,7 @@ export default function useResume() {
     }
   }
 
-  // Clear resume data
+  // Clear resume data (browser only)
   const clearResume = () => {
     const newResumeData = {
       content: "",
@@ -102,7 +104,10 @@ export default function useResume() {
     setResumeData(newResumeData)
     setResumeHistory([newResumeData])
     setHistoryIndex(0)
-    localStorage.removeItem("resumeData")
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("resumeData")
+    }
   }
 
   return {
