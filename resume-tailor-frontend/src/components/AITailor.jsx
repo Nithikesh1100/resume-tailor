@@ -127,10 +127,10 @@ Nice to have:
       const providerKey =
         provider === "openai" ? "openai_api_key" : "groq_api_key";
 
-      const storedApiKey =
-        typeof window !== "undefined"
-          ? localStorage.getItem(providerKey) || apiKey
-          : apiKey;
+      let storedApiKey = apiKey;
+    if (typeof window !== "undefined") {
+      storedApiKey = localStorage.getItem(providerKey) || apiKey;
+    }
 
       if (!storedApiKey) {
         throw new Error(
