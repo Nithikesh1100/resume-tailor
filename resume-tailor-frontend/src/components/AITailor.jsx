@@ -22,17 +22,33 @@ export default function AITailor() {
   const [provider, setProvider] = useState("openai");
   const [usingMockData, setUsingMockData] = useState(false);
   const [rawResponse, setRawResponse] = useState(null);
+  
+  // Add state to track if component has mounted
+  const [hasMounted, setHasMounted] = useState(false);
 
   // Add state for action feedback
   const [applyFeedback, setApplyFeedback] = useState(false);
   const [generateFeedback, setGenerateFeedback] = useState(false);
 
+  // Helper function to safely access localStorage
+  const getFromLocalStorage = (key) => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(key);
+    }
+    return null;
+  };
+
+  // Helper function to safely set localStorage
+  const setToLocalStorage = (key, value) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
+  };
+
   // Load provider from localStorage on component mount
   useEffect(() => {
-    const savedProvider =
-      typeof window !== "undefined"
-        ? localStorage.getItem("selected_ai_provider") || "openai"
-        : "openai";
+    setHasMounted(true);
+    const savedProvider = getFromLocalStorage("selected_ai_provider") || "openai";
     setProvider(savedProvider);
   }, []);
 
@@ -128,9 +144,10 @@ Nice to have:
         provider === "openai" ? "openai_api_key" : "groq_api_key";
 
       let storedApiKey = apiKey;
-    if (typeof window !== "undefined") {
-      storedApiKey = localStorage.getItem(providerKey) || apiKey;
-    }
+      const savedApiKey = getFromLocalStorage(providerKey);
+      if (savedApiKey) {
+        storedApiKey = savedApiKey;
+      }
 
       if (!storedApiKey) {
         throw new Error(
@@ -222,6 +239,11 @@ Nice to have:
     }, 1500);
   };
 
+  // Check if API key exists in localStorage (only after component mounts)
+  const hasApiKeyInStorage = hasMounted && getFromLocalStorage(
+    provider === "openai" ? "openai_api_key" : "groq_api_key"
+  );
+
   return (
     <div className="space-y-8">
       {!results ? (
@@ -278,9 +300,7 @@ Nice to have:
           </div>
 
           {/* API Key input (shown only if not available in settings) */}
-          {!localStorage.getItem(
-            provider === "openai" ? "openai_api_key" : "groq_api_key"
-          ) && (
+          {!hasApiKeyInStorage && (
             <div className="space-y-2">
               <label htmlFor="api-key" className="text-sm font-medium">
                 {provider.toUpperCase()} API Key{" "}
