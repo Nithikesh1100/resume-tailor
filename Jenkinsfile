@@ -1,11 +1,12 @@
 pipeline {
     agent any
-    
+
     environment {
         BUILD_VERSION = "${env.BUILD_NUMBER}"
-        MAVEN_OPTS = "-Dmaven.repo.local=/tmp/.m2 -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN"
+        // Cache repo in Jenkins home, not in /tmp (so it persists)
+        MAVEN_OPTS = "-Dmaven.repo.local=/root/.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN"
     }
-    
+
     stages {
         stage('🔍 Checkout') {
             steps {
@@ -13,32 +14,19 @@ pipeline {
                 checkout scm
             }
         }
-        
-        stage('🏗️ Build Backend') {
+
+        stage('🏗️ Build & Test Backend') {
             agent {
                 docker {
-                    image 'maven:3-openjdk-17'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                    image 'maven:3.9.6-eclipse-temurin-17'
+                    args '-v $HOME/.m2:/root/.m2'
                 }
             }
             steps {
-                echo '🔨 Building Spring Boot backend...'
+                echo '🔨 Building & Testing Spring Boot backend...'
                 dir('resume-tailor') {
-                    sh 'mvn clean compile -q -f pom.xml'
-                }
-            }
-        }
-        
-        stage('🧪 Test Backend') {
-            agent {
-                docker {
-                    image 'maven:3-openjdk-17'
-                }
-            }
-            steps {
-                echo '🔬 Running backend tests...'
-                dir('resume-tailor') {
-                    sh 'mvn test -q -f pom.xml'
+                    // single Maven run: compiles, tests, and packages
+                    sh 'mvn clean package -q'
                 }
             }
             post {
@@ -51,9 +39,15 @@ pipeline {
                         }
                     }
                 }
+                success {
+                    dir('resume-tailor') {
+                        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                        echo '✅ JAR file created and archived!'
+                    }
+                }
             }
         }
-        
+
         stage('⚛️ Build Frontend') {
             agent {
                 docker {
@@ -70,7 +64,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('✅ Test Frontend') {
             agent {
                 docker {
@@ -87,29 +81,7 @@ pipeline {
                 }
             }
         }
-        
-        stage('📦 Package Backend') {
-            agent {
-                docker {
-                    image 'maven:3-openjdk-17'
-                }
-            }
-            steps {
-                echo '📦 Packaging Spring Boot application...'
-                dir('resume-tailor') {
-                    sh 'mvn clean package -DskipTests -q -f pom.xml'
-                }
-            }
-            post {
-                success {
-                    dir('resume-tailor') {
-                        archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
-                        echo '✅ JAR file created and archived!'
-                    }
-                }
-            }
-        }
-        
+
         stage('🚀 Deploy to Staging') {
             when {
                 branch 'develop'
@@ -119,7 +91,7 @@ pipeline {
                 sh 'echo "✅ Staging deployment completed!"'
             }
         }
-        
+
         stage('🌟 Deploy to Production') {
             when {
                 anyOf {
@@ -130,25 +102,23 @@ pipeline {
             steps {
                 script {
                     input message: '🚀 Deploy to production?', ok: 'Deploy'
-                    
                     echo '🌟 Deploying to production...'
                     sh 'echo "✅ Production deployment completed!"'
                 }
             }
         }
     }
-    
+
     post {
         always {
             echo '🧹 Cleaning up...'
-            // Use deleteDir instead of cleanWs
             deleteDir()
         }
-        
+
         success {
             echo '🎉 Pipeline completed successfully! ✅'
         }
-        
+
         failure {
             echo '💥 Pipeline failed! ❌'
             echo '📋 Check the logs above for details.'
