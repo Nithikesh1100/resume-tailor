@@ -27,20 +27,34 @@ export default function CoverLetterGenerator() {
   const [apiKey, setApiKey] = useState("");
   const [provider, setProvider] = useState("openai");
   const [usingMockData, setUsingMockData] = useState(false);
+  
+  // Add state to track if component has mounted
+  const [hasMounted, setHasMounted] = useState(false);
 
   // Add state for copy and download feedback
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [downloadFeedback, setDownloadFeedback] = useState(false);
   const [regenerateFeedback, setRegenerateFeedback] = useState(false);
 
+  // Helper function to safely access localStorage
+  const getFromLocalStorage = (key) => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(key);
+    }
+    return null;
+  };
 
+  // Helper function to safely set localStorage
+  const setToLocalStorage = (key, value) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
+  };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedProvider =
-        localStorage.getItem("selected_ai_provider") || "openai";
-      setProvider(savedProvider);
-    }
+    setHasMounted(true);
+    const savedProvider = getFromLocalStorage("selected_ai_provider") || "openai";
+    setProvider(savedProvider);
   }, []);
 
   // Sample resume for demo purposes
@@ -109,9 +123,9 @@ Requirements:
         provider === "openai" ? "openai_api_key" : "groq_api_key";
 
       let storedApiKey = apiKey; // default fallback
-
-      if (typeof window !== "undefined") {
-        storedApiKey = localStorage.getItem(providerKey) || apiKey;
+      const savedApiKey = getFromLocalStorage(providerKey);
+      if (savedApiKey) {
+        storedApiKey = savedApiKey;
       }
 
       if (!storedApiKey) {
@@ -175,20 +189,18 @@ Requirements:
 
       // Save to localStorage
       try {
-        if (typeof window !== "undefined") {
-          const existingTemplates = JSON.parse(
-            localStorage.getItem("coverLetterTemplates") || "[]"
-          );
-          existingTemplates.push({
-            name: templateName,
-            id: newId,
-            content: coverLetter,
-          });
-          localStorage.setItem(
-            "coverLetterTemplates",
-            JSON.stringify(existingTemplates)
-          );
-        }
+        const existingTemplates = JSON.parse(
+          getFromLocalStorage("coverLetterTemplates") || "[]"
+        );
+        existingTemplates.push({
+          name: templateName,
+          id: newId,
+          content: coverLetter,
+        });
+        setToLocalStorage(
+          "coverLetterTemplates",
+          JSON.stringify(existingTemplates)
+        );
       } catch (err) {
         console.error("Error saving template:", err);
       }
@@ -229,12 +241,12 @@ Requirements:
 
     try {
       // Get API key
-     let storedApiKey = apiKey; // fallback
-if (typeof window !== "undefined") {
-  const providerKey = provider === "openai" ? "openai_api_key" : "groq_api_key";
-  storedApiKey = localStorage.getItem(providerKey) || apiKey;
-}
-
+      let storedApiKey = apiKey; // fallback
+      const providerKey = provider === "openai" ? "openai_api_key" : "groq_api_key";
+      const savedApiKey = getFromLocalStorage(providerKey);
+      if (savedApiKey) {
+        storedApiKey = savedApiKey;
+      }
 
       if (!storedApiKey) {
         throw new Error(`${provider.toUpperCase()} API key is required.`);
@@ -298,6 +310,11 @@ if (typeof window !== "undefined") {
       setIsGenerating(false);
     }
   };
+
+  // Check if API key exists in localStorage (only after component mounts)
+  const hasApiKeyInStorage = hasMounted && getFromLocalStorage(
+    provider === "openai" ? "openai_api_key" : "groq_api_key"
+  );
 
   return (
     <div className="space-y-8">
@@ -371,9 +388,7 @@ if (typeof window !== "undefined") {
           </div>
 
           {/* API Key input (shown only if not available in settings) */}
-          {!localStorage.getItem(
-            provider === "openai" ? "openai_api_key" : "groq_api_key"
-          ) && (
+          {!hasApiKeyInStorage && (
             <div className="space-y-2">
               <label
                 htmlFor="cover-letter-api-key"
