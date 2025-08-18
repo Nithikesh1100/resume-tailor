@@ -5,6 +5,7 @@ pipeline {
         BUILD_VERSION = "${env.BUILD_NUMBER}"
         // Cache repo in Jenkins home, not in /tmp (so it persists)
         MAVEN_OPTS = "-Dmaven.repo.local=/root/.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN"
+        NPM_CONFIG_CACHE = "/root/.npm" // cache npm downloads
     }
 
     stages {
@@ -52,14 +53,15 @@ pipeline {
             agent {
                 docker {
                     image 'node:18-alpine'
+                    args '-v $HOME/.npm:/root/.npm'
                 }
             }
             steps {
                 echo '🎨 Building Next.js frontend...'
                 dir('resume-tailor-frontend') {
                     sh '''
-                        npm ci --silent
-                        npm run build
+                        npm ci --prefer-offline --no-audit --progress=false
+                        npm run ci:build
                     '''
                 }
             }
@@ -69,14 +71,15 @@ pipeline {
             agent {
                 docker {
                     image 'node:18-alpine'
+                    args '-v $HOME/.npm:/root/.npm'
                 }
             }
             steps {
-                echo '🔍 Running frontend tests...'
+                echo '🔍 Running frontend lint & type-check...'
                 dir('resume-tailor-frontend') {
                     sh '''
-                        npm ci --silent
                         npm run lint
+                        npm run type-check
                     '''
                 }
             }
