@@ -1,36 +1,47 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Sparkles, Copy, Download, RefreshCw, Save, AlertTriangle } from "lucide-react"
-import { generateCoverLetter, mockData } from "../services/api"
+import { useState, useEffect } from "react";
+import {
+  Sparkles,
+  Copy,
+  Download,
+  RefreshCw,
+  Save,
+  AlertTriangle,
+} from "lucide-react";
+import { generateCoverLetter, mockData } from "../services/api";
 
 export default function CoverLetterGenerator() {
-  const [resumeText, setResumeText] = useState("")
-  const [jobDescription, setJobDescription] = useState("")
-  const [additionalInfo, setAdditionalInfo] = useState("")
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [coverLetter, setCoverLetter] = useState("")
+  const [resumeText, setResumeText] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [additionalInfo, setAdditionalInfo] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [coverLetter, setCoverLetter] = useState("");
   const [savedTemplates, setSavedTemplates] = useState([
     { name: "Professional", id: "professional" },
     { name: "Creative", id: "creative" },
     { name: "Academic", id: "academic" },
-  ])
-  const [selectedTemplate, setSelectedTemplate] = useState("professional")
-  const [error, setError] = useState(null)
-  const [apiKey, setApiKey] = useState("")
-  const [provider, setProvider] = useState("openai")
-  const [usingMockData, setUsingMockData] = useState(false)
+  ]);
+  const [selectedTemplate, setSelectedTemplate] = useState("professional");
+  const [error, setError] = useState(null);
+  const [apiKey, setApiKey] = useState("");
+  const [provider, setProvider] = useState("openai");
+  const [usingMockData, setUsingMockData] = useState(false);
 
   // Add state for copy and download feedback
-  const [copyFeedback, setCopyFeedback] = useState(false)
-  const [downloadFeedback, setDownloadFeedback] = useState(false)
-  const [regenerateFeedback, setRegenerateFeedback] = useState(false)
+  const [copyFeedback, setCopyFeedback] = useState(false);
+  const [downloadFeedback, setDownloadFeedback] = useState(false);
+  const [regenerateFeedback, setRegenerateFeedback] = useState(false);
 
-  // Load provider from localStorage on component mount
+
+
   useEffect(() => {
-    const savedProvider = localStorage.getItem("selected_ai_provider") || "openai"
-    setProvider(savedProvider)
-  }, [])
+    if (typeof window !== "undefined") {
+      const savedProvider =
+        localStorage.getItem("selected_ai_provider") || "openai";
+      setProvider(savedProvider);
+    }
+  }, []);
 
   // Sample resume for demo purposes
   const sampleResume = `John Doe
@@ -58,7 +69,7 @@ Software Engineer | Digital Solutions LLC, Boston, MA | Mar 2018 - Dec 2020
 - Developed responsive web applications using React and Redux
 - Created RESTful APIs with Node.js and Express
 - Collaborated with UX/UI designers to implement user-friendly interfaces
-- Participated in Agile development cycles and sprint planning`
+- Participated in Agile development cycles and sprint planning`;
 
   // Sample job description for demo purposes
   const sampleJobDescription = `Senior Frontend Developer
@@ -84,119 +95,154 @@ Requirements:
 - Knowledge of performance optimization techniques
 - Familiarity with CI/CD pipelines and Git workflow
 - Strong problem-solving skills and attention to detail
-- Excellent communication and teamwork abilities`
+- Excellent communication and teamwork abilities`;
 
   // Function to generate cover letter
   const generateCoverLetterHandler = async () => {
-    setIsGenerating(true)
-    setError(null)
-    setUsingMockData(false)
+    setIsGenerating(true);
+    setError(null);
+    setUsingMockData(false);
 
     try {
       // First, check if API key is available from localStorage based on selected provider
-      const providerKey = provider === "openai" ? "openai_api_key" : "groq_api_key"
-      const storedApiKey = localStorage.getItem(providerKey) || apiKey
+      const providerKey =
+        provider === "openai" ? "openai_api_key" : "groq_api_key";
+
+      let storedApiKey = apiKey; // default fallback
+
+      if (typeof window !== "undefined") {
+        storedApiKey = localStorage.getItem(providerKey) || apiKey;
+      }
 
       if (!storedApiKey) {
-        throw new Error(`${provider.toUpperCase()} API key is required. Please add it in the Settings page.`)
+        throw new Error(
+          `${provider.toUpperCase()} API key is required. Please add it in the Settings page.`
+        );
       }
 
       // Call the backend API
-      const response = await generateCoverLetter(resumeText, jobDescription, additionalInfo, storedApiKey, provider)
+      const response = await generateCoverLetter(
+        resumeText,
+        jobDescription,
+        additionalInfo,
+        storedApiKey,
+        provider
+      );
 
       // Log the response for debugging
-      console.log("Cover Letter Response:", response)
+      console.log("Cover Letter Response:", response);
 
-      setCoverLetter(response.coverLetter)
+      setCoverLetter(response.coverLetter);
     } catch (err) {
-      console.error("Error generating cover letter:", err)
-      setError(err.message || "Failed to generate cover letter. Please try again.")
+      console.error("Error generating cover letter:", err);
+      setError(
+        err.message || "Failed to generate cover letter. Please try again."
+      );
 
       // Check if we're using mock data due to network error
-      if (err.message.includes("Failed to fetch") || err.message.includes("Network Error")) {
-        console.log("Using mock data due to network error")
-        setCoverLetter(mockData.coverLetterResponse.coverLetter)
-        setUsingMockData(true)
-        setError("Using sample data (backend not available)")
+      if (
+        err.message.includes("Failed to fetch") ||
+        err.message.includes("Network Error")
+      ) {
+        console.log("Using mock data due to network error");
+        setCoverLetter(mockData.coverLetterResponse.coverLetter);
+        setUsingMockData(true);
+        setError("Using sample data (backend not available)");
       } else {
         // This is a real error from the backend
-        throw err
+        throw err;
       }
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
     }
-  }
+  };
 
   // Load sample data
   const loadSampleData = () => {
-    setResumeText(sampleResume)
-    setJobDescription(sampleJobDescription)
+    setResumeText(sampleResume);
+    setJobDescription(sampleJobDescription);
     setAdditionalInfo(
-      "I'm particularly interested in this role because I've been using TechCorp's products for years and admire the company's innovation. I'm excited about the opportunity to work remotely while occasionally visiting the San Francisco office.",
-    )
-  }
+      "I'm particularly interested in this role because I've been using TechCorp's products for years and admire the company's innovation. I'm excited about the opportunity to work remotely while occasionally visiting the San Francisco office."
+    );
+  };
 
   // Save the current cover letter as a template
   const saveTemplate = () => {
-    const templateName = prompt("Enter a name for this template:")
+    const templateName = prompt("Enter a name for this template:");
     if (templateName) {
-      const newId = templateName.toLowerCase().replace(/\s+/g, "-")
-      setSavedTemplates([...savedTemplates, { name: templateName, id: newId }])
+      const newId = templateName.toLowerCase().replace(/\s+/g, "-");
+      setSavedTemplates([...savedTemplates, { name: templateName, id: newId }]);
 
       // Save to localStorage
       try {
-        const existingTemplates = JSON.parse(localStorage.getItem("coverLetterTemplates") || "[]")
-        existingTemplates.push({ name: templateName, id: newId, content: coverLetter })
-        localStorage.setItem("coverLetterTemplates", JSON.stringify(existingTemplates))
+        if (typeof window !== "undefined") {
+          const existingTemplates = JSON.parse(
+            localStorage.getItem("coverLetterTemplates") || "[]"
+          );
+          existingTemplates.push({
+            name: templateName,
+            id: newId,
+            content: coverLetter,
+          });
+          localStorage.setItem(
+            "coverLetterTemplates",
+            JSON.stringify(existingTemplates)
+          );
+        }
       } catch (err) {
-        console.error("Error saving template:", err)
+        console.error("Error saving template:", err);
       }
     }
-  }
+  };
 
   // Download cover letter as a text file
   const downloadCoverLetter = () => {
-    const element = document.createElement("a")
-    const file = new Blob([coverLetter], { type: "text/plain" })
-    element.href = URL.createObjectURL(file)
-    element.download = "cover-letter.txt"
-    document.body.appendChild(element)
-    element.click()
-    document.body.removeChild(element)
-  }
+    const element = document.createElement("a");
+    const file = new Blob([coverLetter], { type: "text/plain" });
+    element.href = URL.createObjectURL(file);
+    element.download = "cover-letter.txt";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
 
   // Update the copy to clipboard function with visual feedback
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(coverLetter)
-    setCopyFeedback(true)
-    setTimeout(() => setCopyFeedback(false), 2000)
-  }
+    navigator.clipboard.writeText(coverLetter);
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
+  };
 
   // Update the download function with visual feedback
   const downloadCoverLetterWithFeedback = () => {
-    downloadCoverLetter()
-    setDownloadFeedback(true)
-    setTimeout(() => setDownloadFeedback(false), 2000)
-  }
+    downloadCoverLetter();
+    setDownloadFeedback(true);
+    setTimeout(() => setDownloadFeedback(false), 2000);
+  };
 
   // Fix the regenerate function to actually call the API again
   const regenerateCoverLetter = async () => {
-    setRegenerateFeedback(false)
-    setIsGenerating(true)
-    setError(null)
-    setUsingMockData(false)
+    setRegenerateFeedback(false);
+    setIsGenerating(true);
+    setError(null);
+    setUsingMockData(false);
 
     try {
       // Get API key
-      const providerKey = provider === "openai" ? "openai_api_key" : "groq_api_key"
-      const storedApiKey = localStorage.getItem(providerKey) || apiKey
+     let storedApiKey = apiKey; // fallback
+if (typeof window !== "undefined") {
+  const providerKey = provider === "openai" ? "openai_api_key" : "groq_api_key";
+  storedApiKey = localStorage.getItem(providerKey) || apiKey;
+}
+
 
       if (!storedApiKey) {
-        throw new Error(`${provider.toUpperCase()} API key is required.`)
+        throw new Error(`${provider.toUpperCase()} API key is required.`);
       }
 
       // Add a slight variation to the prompt to get different results
-      const modifiedAdditionalInfo = additionalInfo + " Please provide a different version than before."
+      const modifiedAdditionalInfo =
+        additionalInfo + " Please provide a different version than before.";
 
       // Call the API again
       const response = await generateCoverLetter(
@@ -204,48 +250,54 @@ Requirements:
         jobDescription,
         modifiedAdditionalInfo,
         storedApiKey,
-        provider,
-      )
+        provider
+      );
 
-      console.log("Regenerated Cover Letter Response:", response)
-      setCoverLetter(response.coverLetter)
+      console.log("Regenerated Cover Letter Response:", response);
+      setCoverLetter(response.coverLetter);
 
       // Show success feedback
-      setRegenerateFeedback(true)
-      setTimeout(() => setRegenerateFeedback(false), 2000)
+      setRegenerateFeedback(true);
+      setTimeout(() => setRegenerateFeedback(false), 2000);
     } catch (err) {
-      console.error("Error regenerating cover letter:", err)
-      setError(err.message || "Failed to regenerate cover letter. Please try again.")
+      console.error("Error regenerating cover letter:", err);
+      setError(
+        err.message || "Failed to regenerate cover letter. Please try again."
+      );
 
       // Check if we're using mock data due to network error
-      if (err.message.includes("Failed to fetch") || err.message.includes("Network Error")) {
-        console.log("Using mock data due to network error")
+      if (
+        err.message.includes("Failed to fetch") ||
+        err.message.includes("Network Error")
+      ) {
+        console.log("Using mock data due to network error");
         // Use mock data with slight variations for demo
         const variations = [
           "I am excited about the opportunity",
           "I am enthusiastic about the possibility",
           "I am thrilled about the chance",
-        ]
-        const randomVariation = variations[Math.floor(Math.random() * variations.length)]
+        ];
+        const randomVariation =
+          variations[Math.floor(Math.random() * variations.length)];
         const modifiedLetter = mockData.coverLetterResponse.coverLetter.replace(
           "I am excited about the opportunity",
-          randomVariation,
-        )
-        setCoverLetter(modifiedLetter)
-        setUsingMockData(true)
-        setError("Using sample data (backend not available)")
+          randomVariation
+        );
+        setCoverLetter(modifiedLetter);
+        setUsingMockData(true);
+        setError("Using sample data (backend not available)");
 
         // Show success feedback anyway
-        setRegenerateFeedback(true)
-        setTimeout(() => setRegenerateFeedback(false), 2000)
+        setRegenerateFeedback(true);
+        setTimeout(() => setRegenerateFeedback(false), 2000);
       } else {
         // This is a real error from the backend
-        throw err
+        throw err;
       }
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-8">
@@ -256,7 +308,10 @@ Requirements:
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-semibold">Your Resume</h2>
-                <button onClick={loadSampleData} className="text-sm text-primary hover:underline">
+                <button
+                  onClick={loadSampleData}
+                  className="text-sm text-primary hover:underline"
+                >
                   Load Sample Data
                 </button>
               </div>
@@ -282,7 +337,9 @@ Requirements:
 
           {/* Additional Information */}
           <div className="space-y-2">
-            <h2 className="text-lg font-semibold">Additional Information (Optional)</h2>
+            <h2 className="text-lg font-semibold">
+              Additional Information (Optional)
+            </h2>
             <textarea
               value={additionalInfo}
               onChange={(e) => setAdditionalInfo(e.target.value)}
@@ -293,7 +350,10 @@ Requirements:
 
           {/* AI Provider Selection */}
           <div className="space-y-2">
-            <label htmlFor="cover-letter-ai-provider" className="text-sm font-medium">
+            <label
+              htmlFor="cover-letter-ai-provider"
+              className="text-sm font-medium"
+            >
               AI Provider
             </label>
             <select
@@ -311,10 +371,16 @@ Requirements:
           </div>
 
           {/* API Key input (shown only if not available in settings) */}
-          {!localStorage.getItem(provider === "openai" ? "openai_api_key" : "groq_api_key") && (
+          {!localStorage.getItem(
+            provider === "openai" ? "openai_api_key" : "groq_api_key"
+          ) && (
             <div className="space-y-2">
-              <label htmlFor="cover-letter-api-key" className="text-sm font-medium">
-                {provider.toUpperCase()} API Key <span className="text-red-500">*</span>
+              <label
+                htmlFor="cover-letter-api-key"
+                className="text-sm font-medium"
+              >
+                {provider.toUpperCase()} API Key{" "}
+                <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-col">
                 <input
@@ -326,8 +392,8 @@ Requirements:
                   className="w-full p-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Your API key is used only for this request and not stored on our server. You can also set this in the
-                  Settings page.
+                  Your API key is used only for this request and not stored on
+                  our server. You can also set this in the Settings page.
                 </p>
               </div>
             </div>
@@ -379,7 +445,10 @@ Requirements:
           {/* Results Header */}
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Your Cover Letter</h2>
-            <button onClick={() => setCoverLetter("")} className="text-sm text-primary hover:underline">
+            <button
+              onClick={() => setCoverLetter("")}
+              className="text-sm text-primary hover:underline"
+            >
               Create New Cover Letter
             </button>
           </div>
@@ -391,14 +460,18 @@ Requirements:
               <div>
                 <p className="text-sm text-yellow-700">{error}</p>
                 {usingMockData && (
-                  <p className="text-xs text-yellow-600 mt-1">Results shown are sample data for demonstration.</p>
+                  <p className="text-xs text-yellow-600 mt-1">
+                    Results shown are sample data for demonstration.
+                  </p>
                 )}
               </div>
             </div>
           )}
 
           {/* Cover Letter Preview */}
-          <div className="border rounded-lg p-6 bg-white text-black whitespace-pre-wrap font-serif">{coverLetter}</div>
+          <div className="border rounded-lg p-6 bg-white text-black whitespace-pre-wrap font-serif">
+            {coverLetter}
+          </div>
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-4 justify-center">
@@ -416,11 +489,15 @@ Requirements:
             <button
               onClick={downloadCoverLetterWithFeedback}
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                downloadFeedback ? "bg-green-500 text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                downloadFeedback
+                  ? "bg-green-500 text-white"
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
               }`}
             >
               <Download className="h-5 w-5" />
-              <span>{downloadFeedback ? "Downloaded!" : "Download as Text"}</span>
+              <span>
+                {downloadFeedback ? "Downloaded!" : "Download as Text"}
+              </span>
             </button>
             <button
               onClick={saveTemplate}
@@ -438,12 +515,20 @@ Requirements:
                   : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
               }`}
             >
-              <RefreshCw className={`h-5 w-5 ${isGenerating ? "animate-spin" : ""}`} />
-              <span>{isGenerating ? "Regenerating..." : regenerateFeedback ? "Regenerated!" : "Regenerate"}</span>
+              <RefreshCw
+                className={`h-5 w-5 ${isGenerating ? "animate-spin" : ""}`}
+              />
+              <span>
+                {isGenerating
+                  ? "Regenerating..."
+                  : regenerateFeedback
+                    ? "Regenerated!"
+                    : "Regenerate"}
+              </span>
             </button>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }
