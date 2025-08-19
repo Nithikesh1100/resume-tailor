@@ -242,13 +242,19 @@ export async function compileToPdf(latexContent) {
   try {
     console.log("Compiling LaTeX to PDF, content length:", latexContent.length, "characters")
 
+    const sanitizedContent = latexContent
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+      .trim()
+
     const response = await fetch(`${API_BASE_URL}/resume/compile`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        latexContent,
+        latexContent: sanitizedContent,
       }),
     })
 
@@ -262,9 +268,9 @@ export async function compileToPdf(latexContent) {
 
       try {
         const errorData = JSON.parse(errorText)
-        throw new Error(errorData.message || `Failed to compile PDF: ${response.status} ${response.statusText}`)
-      } catch (e) {
-        throw new Error(`Failed to compile PDF: ${response.status} ${response.statusText}`)
+        throw new Error(errorData.message || errorData.details || `Failed to compile PDF: ${response.status}`)
+      } catch (parseError) {
+        throw new Error(`Failed to compile PDF: ${response.status} - ${errorText.substring(0, 200)}`)
       }
     }
 
